@@ -8,6 +8,7 @@ It is only suitable for calculating SAIDI and SAIFI between 2015 and 2020.
 **Usage Examples**
 ------------------------------
 *Produce a csv output of the faults read from the database*
+-----------------------------------------------------
 >>> from SAIDISAIFI import ORSCalculator, ORSDebug
 >>> import datetime
 >>> ICPCount = {2000: 13456, 2001: 13987, 2002: 14012, 2003: 14000}
@@ -19,6 +20,7 @@ It is only suitable for calculating SAIDI and SAIFI between 2015 and 2020.
 >>> DBG.create_csv()
 
 *Produce the stats files for a particular network *
+-----------------------------------------------------
 >>> from SAIDISAIFI import ORSCalculator, Output, Parser
 >>> import datetime
 >>> ICPCount = {2000: 13456, 2001: 13987, 2002: 14012, 2003: 14000}
