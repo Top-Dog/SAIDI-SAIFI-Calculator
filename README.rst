@@ -19,7 +19,7 @@ It is only suitable for calculating SAIDI and SAIFI between 2015 and 2020.
 >>> DBG = ORSDebug(OJV)
 >>> DBG.create_csv()
 
-*Produce the stats files for a particular network *
+*Produce the stats files for a particular network*
 -----------------------------------------------------
 >>> from SAIDISAIFI import ORSCalculator, Output, Parser
 >>> import datetime
