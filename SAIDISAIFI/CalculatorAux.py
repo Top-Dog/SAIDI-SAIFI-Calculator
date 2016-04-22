@@ -1,5 +1,6 @@
 '''
 Created on 30/3/2016
+Updated 22/04/2016 (added ODBC direct SQL support)
 
 @author: Sean D. O'Connor
 
@@ -11,7 +12,7 @@ access to the ORS database using ODBC.
 
 import pyodbc
 
-class ODBC_ORS(object):
+class ODBC_ORS_ACESS(object):
     """Directly connect to the PNL Outage Recording System (ORS)
     and pull live data, rather than manually doing the export and 
     formatting the data in a excel/csv file.
@@ -52,6 +53,60 @@ class ODBC_ORS(object):
     def _run_query(self):
         """Run the SQl quer code"""
         self.queryresults = self.connection.execute(self.sql)
+        
+    def get_query_results(self):
+        """Return the query results,
+        formatted ready for wrting to excel"""
+        QueryData = []
+        for row in self.queryresults:
+            # The row is already a tuple (itterable object), so there is no need to enclose it in a list 
+            QueryData.append(row)
+        return QueryData
+        
+    def close(self):
+        """Close the file pointer and DB connection"""
+        self.queryresults.close()
+        self.connection.close()
+
+# This uses a SQL query as opposed to a MS access one
+class ODBC_ORS(object):
+    """Directly connect to the PNL Outage Recording System (ORS)
+    and pull live data, rather than manually doing the export and 
+    formatting the data in a excel/csv file.
+    Requires the pyodbc module."""
+    def __init__(self):
+        # Connection Parameters (Const)
+        self.connStr = (
+            "DRIVER={SQL Server};SERVER=PNLICP1"
+            )
+        # The SQL query to perform on the DB.
+        # Remember to use single quotes around strings, else an error is generated.
+        # TODO: move all "WHERE" criteria into dictionary generator method.                    
+        self.sql = """
+            SELECT Out_Num, Out_Num, Out_Linked_Num, Out_OffDate, Out_OffTime, Out_Network, Class_Desc, Out_Calc_CustMin, Out_Calc_ICP, Out_AutoReclose
+            FROM (SELECT Out_Num, Out_Linked_Num, Out_OffDate, Out_OffTime, Out_CC_YearEnd, Out_Network, Out_Calc_ICP, Out_Calc_Cust, Out_Calc_CustMin, Out_AutoReclose, Out_Class, t.Class_Desc
+                        FROM dbo.tbl_Outage 
+                              LEFT JOIN (SELECT CONVERT(int,VLC_Code) AS Class_Code, VLC_Desc AS Class_Desc
+                                                FROM tbl_Valid_Lookup_Code
+                                                WHERE VLC_Family=24)t ON Out_Class = t.Class_Code
+                        GROUP BY Out_Num, Out_Linked_Num, Out_OffDate, Out_OffTime, Out_CC_YearEnd, Out_Network, Out_Calc_ICP, Out_Calc_Cust, Out_Calc_CustMin, Out_AutoReclose, Out_Class, t.Class_Desc
+                        HAVING Out_OffDate >='4/1/2003') d
+            GROUP BY Out_Num, Out_Linked_Num, Out_OffDate, Out_OffTime, Out_Network, Class_Desc, Out_Calc_CustMin, Out_Calc_ICP, Out_AutoReclose, Out_Num
+            ORDER BY Out_OffDate;
+            """
+        
+        self._connect()
+        self._run_query()
+    
+    def _connect(self):
+        """Handle a connetion to the ODBC"""
+        self.connection = pyodbc.connect(self.connStr)
+        self.cursor = self.connection.cursor()
+        
+    def _run_query(self):
+        """Run the SQl quer code"""
+        self.queryresults = self.connection.execute(self.sql)
+        #self.queryresults = self.cursor(self.sql)
         
     def get_query_results(self):
         """Return the query results,
