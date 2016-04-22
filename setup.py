@@ -18,8 +18,10 @@ def create_user_files():
 	file_names = ["SAIDI SAIFI Calculator.xlsm", "ICP_Search_Prog_a2k3.mde"]
 	for filename in file_names:
 		if not os.path.isfile(os.path.join(dest_dir, filename)):
-			shutil.copy2(os.path.join(src_dir, "Data", filename), os.path.join(dest_dir, filename))
-	
+			try:
+				shutil.copy2(os.path.join(src_dir, "Data", filename), os.path.join(dest_dir, filename))
+			except:
+				print "The file %s is missing and cannot be coppied" % filename
 	# Copy all the chart template files
 	for file in os.listdir(os.path.join(src_dir, "Data")):
 		if file.endswith(".crtx"):
@@ -42,7 +44,7 @@ if __name__ == "__main__":
 		  # adding packages
 		  #packages=find_packages('src'),
 		  #package_dir = {'':'src'},
-		  install_requires=['numpy', 'pywin32', 'pyodbc', 'six', 'wheel', 'virtualenv'], #pypiwin32
+		  install_requires=['numpy', 'pypiwin32', 'pyodbc', 'six', 'wheel', 'virtualenv', 'tabulate'], #pywin32
 		  
 		  # Add static data files
 		  include_package_data = True,
