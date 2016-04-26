@@ -8,6 +8,7 @@ FILE_DIRS = {
 	"OTPO" : os.path.expanduser('~/Documents/SAIDI and SAIFI/Stats/OJV'),
 	"ELIN" : os.path.expanduser('~/Documents/SAIDI and SAIFI/Stats/EIL'),
 	"TPCO" : os.path.expanduser('~/Documents/SAIDI and SAIFI/Stats/TPC'),
+	"GENERAL" : os.path.expanduser('~/Documents/SAIDI and SAIFI'),
 	}
 
 # These values are used for verification only. They are offical data from the CC, they should 

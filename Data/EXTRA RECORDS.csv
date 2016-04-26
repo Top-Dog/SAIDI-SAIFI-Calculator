@@ -1,0 +1,20 @@
+id,ORS Number,Linked_ORS #,Date Off,Time Off,Network,Interruption Class,Customer min,Number of Unique ICP's,Auto Reclose/Under 1 minute?
+-,3633,3633,6/12/2006,23:57,OTPO,Planned - PowerNet,"4,743.00",279,N
+-,-5328,-5328,6/06/2004,20:14,OTPO,Unplanned - PowerNet,"2,072.00",28,N
+-,-5327,-5327,6/06/2004,20:14,OTPO,Unplanned - PowerNet,"63,864.00",887,N
+-,-5326,-5326,6/06/2004,20:14,OTPO,Unplanned - PowerNet,"89,784.00","1,247.00",N
+-,-5325,-5325,6/06/2004,20:14,OTPO,Unplanned - PowerNet,"67,824.00",942,N
+-,-5329,-5329,6/06/2004,20:14,OTPO,Unplanned - PowerNet,370,5,N
+-,-5590,-5590,29/11/2004,17:54,OTPO,Unplanned - PowerNet,"28,681.00","1,247.00",N
+-,-5591,-5591,29/11/2004,17:54,OTPO,Unplanned - PowerNet,"20,401.00",887,N
+-,-5589,-5589,29/11/2004,17:54,OTPO,Unplanned - PowerNet,"13,225.00",575,N
+-,1005,1005,21/12/2005,8:39,OTPO,Unplanned - PowerNet,"15,785.00","3,157.00",N
+-,1751,1751,23/03/2006,6:26,OTPO,Unplanned - PowerNet,"15,755.00","3,151.00",N
+-,2266,2266,19/06/2006,17:47,OTPO,Unplanned - PowerNet,"178,806.00","3,098.00",N
+-,3928,3928,25/01/2007,6:59,OTPO,Unplanned - PowerNet,"18,972.00","3,162.00",N
+-,4362,4362,31/03/2007,6:21,OTPO,Unplanned - PowerNet,"9,498.00","3,166.00",N
+-,9187,9187,3/01/2009,12:59,OTPO,Unplanned - PowerNet,"59,774.00","3,146.00",N
+-,10006,10006,29/04/2009,12:17,OTPO,Unplanned - PowerNet,"56,970.00","3,165.00",N
+-,10020,10020,1/05/2009,7:14,OTPO,Unplanned - PowerNet,"56,988.00","3,166.00",N
+-,17746,17746,25/03/2012,15:28,OTPO,Unplanned - PowerNet,"326,904.00","3,252.00",N
+-,19765,19765,25/01/2013,11:10,OTPO,Unplanned - PowerNet,"86,510.00","3,273.00",N

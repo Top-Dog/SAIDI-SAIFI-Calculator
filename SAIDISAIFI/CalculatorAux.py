@@ -193,7 +193,7 @@ class ORSDebug(object):
                     "Number of Unique ICP's", "Auto Reclose/Under 1 minute?"]
         ors = ODBC_ORS()
         qryrows = ors.get_query_results()
-        with open(os.path.join(self.orsCalc.outFolder, "ORS Dump.csv"), 'wb') as ffaults: # self.CCin
+        with open(os.path.join(self.orsCalc.outFolder, "ORS Dump.csv"), 'wb') as ffaults:
             f = csv.writer(ffaults)
             f.writerow(Headings)
             for row in qryrows:

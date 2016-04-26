@@ -14,14 +14,15 @@ def create_user_files():
 		if not os.path.exists(os.path.join(dest_dir, dir)):
 			os.makedirs(os.path.join(dest_dir, dir))
 	
-	# Copy database files from the Data folder for the user
-	file_names = ["SAIDI SAIFI Calculator.xlsm", "ICP_Search_Prog_a2k3.mde"]
+	# Copy database/src files from the Data folder for the user
+	file_names = ["SAIDI SAIFI Calculator.xlsm", "ICP_Search_Prog_a2k3.mde", "EXTRA RECORDS.csv"]
 	for filename in file_names:
 		if not os.path.isfile(os.path.join(dest_dir, filename)):
 			try:
 				shutil.copy2(os.path.join(src_dir, "Data", filename), os.path.join(dest_dir, filename))
 			except:
 				print "The file %s is missing and cannot be coppied" % filename
+	
 	# Copy all the chart template files
 	for file in os.listdir(os.path.join(src_dir, "Data")):
 		if file.endswith(".crtx"):

@@ -8,7 +8,7 @@ Run the SAIDI SAIFI calculator using
 my Excel libriary, spesfic run file
 for the SAIDI SAIFI Calulator py file.
 '''
-import threading, time, multiprocessing, datetime
+import threading, time, multiprocessing, datetime, sys
 from SAIDISAIFI import ORSCalculator, Output, Parser
 from MSOffice import Excel
 from progbar import ProgressBar
@@ -59,7 +59,7 @@ def worker_networks(startdate, enddate, threadID, NetworkInQueue, NetworkOutQueu
 		Network.display_stats("fiscal year", "Results Table.txt")
 		Network.display_stats("day", "Results Table - Daily.txt")
 		
-		# Debugging stuff
+		# Debugging stuff - produce the complete fault record in the database, excludes extra outages
 		DBG = SAIDISAIFI.CalculatorAux.ORSDebug(Network)
 		DBG.create_csv()
 
@@ -70,13 +70,13 @@ def worker_networks(startdate, enddate, threadID, NetworkInQueue, NetworkOutQueu
 if __name__ == "__main__":    
 	starttime = datetime.datetime.now()
 	# Get the currently active MS Excel Instace
-	xl = Excel.Launch.Excel(visible=True, runninginstance=True)
-	print xl.xlBook.Name
-	
-	# Example: Produce a csv output of the faults read via the ODBC
-	#OJV = ORSCalculator(ORSpathOJV, avrgCustomerNumOJV, "OTPO, LLNW")
-	#DBG = ORSDebug(OJV)
-	#DBG.create_csv()
+	try:
+		xl = Excel.Launch.Excel(visible=True, runninginstance=True)
+		print xl.xlBook.Name
+	except:
+		print "You need to have the Excel sheet open and set as the active window"
+		time.sleep(5)
+		sys.exit()
 
 	p = Parser.ParseORS(xl)
 	# All ICP counts are averages as of the 31 March i.e. fincial year ending
