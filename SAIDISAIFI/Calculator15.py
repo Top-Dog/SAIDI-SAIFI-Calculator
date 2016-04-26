@@ -23,6 +23,7 @@ class ORSCalculator(object):
         self.FaultTypeCol = 6
         self.CusmMinCol = 7
         self.UniqueICPCol = 8
+        self.AutoReclose = 9
         
         # Boundary values should be calculated as the 23rd largest DAILY SAIDI (i.e. grouped days) for UNPLANNED outages
         #self.BoundryCalcPeriod = (2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014) # Year ending, e.g. 31/03/2005 for 2005
@@ -273,6 +274,11 @@ class ORSCalculator(object):
             SAIDI = 0
             SAIFI = 0
         elif faultType == "unplanned" and record[self.FaultTypeCol] == "Planned - PowerNet":
+            SAIDI = 0
+            SAIFI = 0
+            
+        # Ignore autoreclose events (i.e. events under 1 minute)
+        if record[self.AutoReclose] == "Y":
             SAIDI = 0
             SAIFI = 0
         

@@ -12,6 +12,7 @@ import threading, time, multiprocessing, datetime
 from SAIDISAIFI import ORSCalculator, Output, Parser
 from MSOffice import Excel
 from progbar import ProgressBar
+import SAIDISAIFI
 
 def sum_like_keys2(*args):
 	"""Sums all the values that have the same
@@ -57,6 +58,10 @@ def worker_networks(startdate, enddate, threadID, NetworkInQueue, NetworkOutQueu
 		Network.display_stats("month", "Results Table - Monthly.txt")
 		Network.display_stats("fiscal year", "Results Table.txt")
 		Network.display_stats("day", "Results Table - Daily.txt")
+		
+		# Debugging stuff
+		DBG = SAIDISAIFI.CalculatorAux.ORSDebug(Network)
+		DBG.create_csv()
 
 		# Put the completed network into an output queue
 		NetworkOutQueue.put(Network)
@@ -85,15 +90,15 @@ if __name__ == "__main__":
 	for n in Networks:
 		NetworkInQueue.put(n)
 
-
-	MAX_NUM_OF_WORKER_THREADS = 3
-	threads = []
-	for iThread in range(MAX_NUM_OF_WORKER_THREADS):
-		thread = multiprocessing.Process(target=worker_networks, args=(startdate, enddate, iThread, NetworkInQueue, NetworkOutQueue, ICPNums))
-		# These threads don't need to be daemon, as they'll terminate propertly with a timeout
-		threads.append(thread)
-		thread.start()
+	# Start the worker processes; produce dictionaries of SAIDI and SAIFI
+	MAX_NUM_OF_WORKER_PROCESSES = 3
+	processes = []
+	for process_i in range(MAX_NUM_OF_WORKER_PROCESSES):
+		process = multiprocessing.Process(target=worker_networks, args=(startdate, enddate, process_i, NetworkInQueue, NetworkOutQueue, ICPNums))
+		processes.append(process)
+		process.start()
 	
+	# Work with Excel COM to produce graphs for one network at a time (avoid COM threading/asyncronous behaviour)
 	num_networks = 0
 	while num_networks < len(Networks):
 		Network = NetworkOutQueue.get(True) # Blocks indefinetly if nothing is in the queue
@@ -128,10 +133,14 @@ if __name__ == "__main__":
 			xlPlotter.Create_Graphs(year)
 			pb.update_paced()
 		
+		# Wait for the progress bar to complete to 100%
 		pb_thread.join()
 		num_networks += 1
 
-	for t in threads:
-		t.join()
+	# Wait for all workers to finish
+	for process in processes:
+		process.join()
+	
+	# Let the user know that we are done
 	print "Task completed in %d seconds" % (datetime.datetime.now() - starttime).seconds
 	raw_input("Done. Press the return key to exit.")

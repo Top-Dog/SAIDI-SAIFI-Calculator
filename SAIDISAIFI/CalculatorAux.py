@@ -1,6 +1,5 @@
 '''
 Created on 30/3/2016
-Updated 22/04/2016 (added ODBC direct SQL support)
 
 @author: Sean D. O'Connor
 
@@ -10,9 +9,9 @@ comparission with the ComCom records, and direct
 access to the ORS database using ODBC.
 '''
 
-import pyodbc
+import pyodbc, os, csv
 
-class ODBC_ORS_ACESS(object):
+class ODBC_ORS_ACCESS(object):
     """Directly connect to the PNL Outage Recording System (ORS)
     and pull live data, rather than manually doing the export and 
     formatting the data in a excel/csv file.
@@ -90,7 +89,7 @@ class ODBC_ORS(object):
                                                 FROM tbl_Valid_Lookup_Code
                                                 WHERE VLC_Family=24)t ON Out_Class = t.Class_Code
                         GROUP BY Out_Num, Out_Linked_Num, Out_OffDate, Out_OffTime, Out_CC_YearEnd, Out_Network, Out_Calc_ICP, Out_Calc_Cust, Out_Calc_CustMin, Out_AutoReclose, Out_Class, t.Class_Desc
-                        HAVING Out_OffDate >='4/1/2003') d
+                        HAVING Out_OffDate >='4/1/2002') d
             GROUP BY Out_Num, Out_Linked_Num, Out_OffDate, Out_OffTime, Out_Network, Class_Desc, Out_Calc_CustMin, Out_Calc_ICP, Out_AutoReclose, Out_Num
             ORDER BY Out_OffDate;
             """
@@ -188,13 +187,13 @@ class ORSDebug(object):
         # Number of ICPs as opposed to number of customers
         # Outage duration should be used instead of "Customer min"
         print "Debug: ", self.orsCalc.networknames
-        Headings = ["Auto Reclose/Under 1 minute?", "ORS Number", "Linked_ORS #", 
+        Headings = ["ORS Number", "ORS Number", "Linked_ORS #", 
                     "Date Off", "Time Off", "Network", 
                     "Interruption Class", "Customer min", 
-                    "Number of Unique ICP's"]
+                    "Number of Unique ICP's", "Auto Reclose/Under 1 minute?"]
         ors = ODBC_ORS()
         qryrows = ors.get_query_results()
-        with open(os.path.join(self.orsCalc.outFolder, "OJV - Sean Test.csv"), 'wb') as ffaults: # self.CCin
+        with open(os.path.join(self.orsCalc.outFolder, "ORS Dump.csv"), 'wb') as ffaults: # self.CCin
             f = csv.writer(ffaults)
             f.writerow(Headings)
             for row in qryrows:
