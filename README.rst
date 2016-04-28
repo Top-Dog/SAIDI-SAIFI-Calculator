@@ -1,4 +1,3 @@
-SAIDI/SAIFI (ORS) module
 This is a very purpose specific module that is designed to read data from the Outage Recoding System (ORS) and create dictionaries of organised data suitable for analysis. The module is also able to produce .txt files that summarise the accumulated SAIDI and SAIFI for a particular network at predefined time step/date resolutions.
 
 This module calculates SAIDI and SAIFI in accordance with the New Zealand Commerce Commission "Electricity Distribution Services Default Price-Quality Path". It was designed to give suitable information for the annual Asset Management Plans (AMPs) as well as the information disclosures.

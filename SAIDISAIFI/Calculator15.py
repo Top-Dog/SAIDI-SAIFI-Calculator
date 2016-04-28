@@ -15,6 +15,7 @@ class ORSCalculator(object):
 	will need to be applied"""
 	def __init__(self, avrgCustomerNum, networkname,
 				 startDate=None, endDate=None):
+		self.FeederCol = 0
 		self.ORSNumCol = 1
 		self.LinkedORSCol = 2
 		self.DateCol = 3
@@ -69,11 +70,15 @@ class ORSCalculator(object):
 		self.boundarySAIFIValue = 0
 		
 		self.avrgCustomerNum = avrgCustomerNum
-		self.AllFaults = {} # key = linked ORS, values = [date, SAIDI, SAIFI, unique ICP count]
+
+		# We need to know individual ICPs, so we can exldue outages affecting 3 or less (prior to a a given date)
+		self.AllFaults = {} # key = linked ORS, values = [date, SAIDI, SAIFI, unique ICP count, Feeder]
 		self.GroupedAllFaults = {} # key = date, values = [SAIDI, SAIFI]
-		self.PlannedFaults = {} # key = date, values = [SAIDI, SAIFI]
-		self.GroupedPlannedFaults = {} # key = linked ORS, values = [date, SAIDI, SAIFI, unique ICP count]
-		self.UnplannedFaults = {} # key = date, values = [SAIDI, SAIFI]
+		
+		self.PlannedFaults = {} # key = linked ORS, values = [date, SAIDI, SAIFI, unique ICP count, Feeder]
+		self.GroupedPlannedFaults = {} # key = date, values = [SAIDI, SAIFI]
+		
+		self.UnplannedFaults = {} # key = linked ORS, values = [date, SAIDI, SAIFI, unique ICP count. Feeder]
 		self.GroupedUnplannedFaults = {} # key = date, values = [SAIDI, SAIFI]
 		
 		self.table = [] # Table used for tabulating results
@@ -94,7 +99,6 @@ class ORSCalculator(object):
 	def _set_boundary_values(self):
 		'''Recalls the boundary SAIDI and SAIFI values (23 largest values in the unplanned outages)
 		from a dictionary and returns the boundary values for SAIDI and SAIFI for all UNPLANNED outages'''
-		#dic = self.GroupedUnplannedFaults # key = date, values = [SAIDI, SAIFI]
 		dic = {}
 		# We only calculate boundary values in the 5 year period (1/04/2004 - 31/03/2014)
 		for date in self.GroupedUnplannedFaults:
@@ -128,9 +132,7 @@ class ORSCalculator(object):
 			# There is no header row when reading from the DB
 			# The record and CSV file MUST follow the expected layout!
 			for record in qryrows:
-				# Only include fault records for the specfied network(s)
-				if record[self.NetworkCol] in self.networknames:
-					self._process_fault_record(record, FaultType, IndividualFaults)
+				self._process_fault_record(record, FaultType, IndividualFaults)
 			
 			# Warning, a hack: a way to read in the transpower outages for the purchased OJV/transpower assets
 			try:
@@ -156,6 +158,7 @@ class ORSCalculator(object):
 			# Get the stats for a new record in the ORS
 			Date, SAIDI, SAIFI = self.get_fault(record, FaultType)
 			ICPcount = record[self.UniqueICPCol]
+			Feeder = record[self.FeederCol] # TODO: fix this line, make sure that empty string or NONE is handeled
 			if type(ICPcount) is not int:
 				try:
 					ICPcount = float(record[self.UniqueICPCol].replace(',', ''))
@@ -166,16 +169,16 @@ class ORSCalculator(object):
 			# Handle the linking of faults
 			if self.LinkOutages:
 				# Get the stats for an old record in the ORS, or 0 if nothing exists
-				Date0, SAIDI0, SAIFI0, ICPcount0 = IndividualFaults.get(record[self.LinkedORSCol], [Date, 0, 0, 0])
+				Date0, SAIDI0, SAIFI0, ICPcount0, Feeder0 = IndividualFaults.get(record[self.LinkedORSCol], [Date, 0, 0, 0, Feeder])
 				if record[self.ORSNumCol] == record[self.LinkedORSCol]:
 					# The outage is always brought back to the date where the linked ORS# and ORS# are the same (not the max or min. date) - should it be the min. date?
 					Date0 = Date
 				if SAIDI0 + SAIDI != 0 and SAIFI0 + SAIFI != 0:
 					# Only add non-zero records to the dictionaries, i.e. only faults are added (no clear days with 0 SAIDI/SAIFI)
-					IndividualFaults[record[self.LinkedORSCol]] = [Date0, SAIDI0 + SAIDI, SAIFI0 + SAIFI, ICPcount0 + ICPcount]
+					IndividualFaults[record[self.LinkedORSCol]] = [Date0, SAIDI0 + SAIDI, SAIFI0 + SAIFI, ICPcount0 + ICPcount, Feeder0]
 			else:
 				if SAIDI != 0 and SAIFI != 0:
-					IndividualFaults[record[self.ORSNumCol]] = [Date, SAIDI, SAIFI, ICPcount]
+					IndividualFaults[record[self.ORSNumCol]] = [Date, SAIDI, SAIFI, ICPcount, Feeder0]
 	
 	def _group_same_day(self, dic, sortedDic):
 		# sortedDic: key = date, Values = [SAIDI, SAIFI]
@@ -194,14 +197,30 @@ class ORSCalculator(object):
 					else:
 						try:
 							if dic.get(faultkey)[3] > 3.0 and currentDate < self.threeICPStartDate:
-								sortedDic[currentDate] = [buff[0] + dic.get(faultkey)[1], buff[1] + dic.get(faultkey)[2]]
-							else:
 								# Don't count faults that defined by linked ID affect less than or equal to 3 ICPs
-								pass                       
+								sortedDic[currentDate] = [buff[0] + dic.get(faultkey)[1], buff[1] + dic.get(faultkey)[2]]                     
 						except:
 							print "String to float cast failed. No valid data for: ", currentDate
 							print dic.get(faultkey)
 			currentDate += self.deltaDay
+
+	def _group_same_feeder(self, dic, sortedDic, startdate, enddate):
+		"""Group outages by day and by feeder, so the sorted dictinary will contain 
+		dates of individual feeder outages per day."""
+		# {date : {"feeder 1" : [SAIDI, SAIFI], "feeder 2" : [SAIDI, SAIFI], ...}}
+		# These are raw SAIDI/SAIFIs i.e. there are no boundary value cappings applied
+
+		# Loop through the domain [startdate, enddate], so if start and end date re the same you will get one days worth of data back
+		while startdate < (self.deltaDay + enddate):
+			for linkedORSNum in dic:
+				Date, SAIDI, SAIFI, UniqueICPs, Feeder = dic.get(linkedORSNum)
+				if Date == startdate:
+					Feeders = sortedDic.get(startdate, {})
+					SAIDI0, SAIFI0 = Feeders.get(Feeder, [0, 0])
+					Feeders[Feeder] = [SAIDI0 + SAIDI, SAIFI0 + SAIFI]
+					sortedDic[startdate] = Feeders
+			startdate += self.deltaDay
+
 	
 	def _get_indicies(self, currentDate, faultType, applyBoundary=True):
 		'''Recalls the SAIDI and SAIFI values from a dictionary. 
@@ -434,6 +453,7 @@ class ORSCalculator(object):
 				assert plannedSAIDI + unplannedSAIDI == SAIDI, "ERROR: SAIDI sum does not match" 
 				assert plannedSAIFI + unplannedSAIFI == SAIFI, "ERROR: SAIFI sum does not match"   
 				currentDate += self.deltaDay
+
 		print "Network statistics successfully generated!"
 	
 	def period_endings(self, resolution):
@@ -536,6 +556,38 @@ class ORSCalculator(object):
 			return False
 		return True
 		
+	def DA_Table(self, fileName, startdate, enddate):
+		"""Create the Distrobution Automation (DA) anaylsis table
+		based on unplanned outages only."""
+		FilePath = self.remove_file(fileName)
+		if not os.path.exists(os.path.dirname(FilePath)):
+			try:
+				os.makedirs(os.path.dirname(FilePath))
+			except OSError as exc: # Guard against race condition
+				if exc.errno != errno.EEXIST:
+					raise
+
+		# Group faults by day, then by feeder
+		Feeder_Grouped_Outages = {} # These are percentages, not actual absolute values
+		Date_Grouped_Outages = {}
+		self._group_same_feeder(self.UnplannedFaults, Date_Grouped_Outages, startdate, enddate)
+		Table = []
+		Headings = ["Feeder Name", "SAIDI %", "SAIFI %"]
+		# Group all feeders with the same name
+		for Date, Feeders in Date_Grouped_Outages.interitems():
+			SAIDIDay, SAIFIDay = self.GroupedUnplannedFaults.get(Date)
+			for Feeder, Stats in Feeders.interitems():
+				SAIDI0, SAIFI0 = Feeder_Grouped_Outages.get(Feeder, [0, 0])
+				SAIDI, SAIFI = Stats[0]/SAIDIDay, Stats[1]/SAIFIDay
+				Feeder_Grouped_Outages[Feeder] = [SAIDI0+SAIDI, SAIFI0+SAIFI]
+		# Now that the feeders are grouped by name, print their combined SAIDI and SAIFI
+		for Feeder, Stats in Feeder_Grouped_Outages.iteritems():
+			Table.append([Feeder, Stats[0], Stats[1]])
+
+		with open(FilePath, "a") as results_file:
+			results_file.write(tabulate(Table, Headings,  tablefmt="orgtbl", floatfmt=".5f", 
+				numalign="right")) 
+
 	def display_stats(self, resolution, fileName):
 		"""Method that creates tables for displaying data
 		Replacement method for annual_stats"""
