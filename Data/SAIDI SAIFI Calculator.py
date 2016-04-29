@@ -40,12 +40,12 @@ def update_prog_bar(progbar):
 	print
 
 def worker_networks(startdate, enddate, threadID, NetworkInQueue, NetworkOutQueue, ICPNums):
-	print "Thread %d started" % threadID
+	print "Process %d started" % threadID
 	while True:
 		try:
 			NetworkName = NetworkInQueue.get(True, 0.1)
 		except:
-			print "Thread %d timed out" % threadID
+			print "Process %d timed out" % threadID
 			return
 		ICPs = []
 		names = [x.strip(' ') for x in NetworkName.split(',')]
@@ -62,6 +62,9 @@ def worker_networks(startdate, enddate, threadID, NetworkInQueue, NetworkOutQueu
 		# Debugging stuff - produce the complete fault record in the database, excludes extra outages
 		DBG = SAIDISAIFI.CalculatorAux.ORSDebug(Network)
 		DBG.create_csv()
+
+		# Distrobution Automation stuff
+		Network.DA_Table("DA Table.txt", datetime.datetime(2014,4,1), datetime.datetime(2016,4,1))
 
 		# Put the completed network into an output queue
 		NetworkOutQueue.put(Network)

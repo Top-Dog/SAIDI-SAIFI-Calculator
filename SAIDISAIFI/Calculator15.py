@@ -569,20 +569,25 @@ class ORSCalculator(object):
 
 		# Group faults by day, then by feeder
 		Feeder_Grouped_Outages = {} # These are percentages, not actual absolute values
-		Date_Grouped_Outages = {}
+		Date_Grouped_Outages = {} # This includes outage affecting 3 or less ICPs, so self.GroupedUnplannedFaults.get(Date) can return None
 		self._group_same_feeder(self.UnplannedFaults, Date_Grouped_Outages, startdate, enddate)
 		Table = []
 		Headings = ["Feeder Name", "SAIDI %", "SAIFI %"]
+		SAIDItot, SAIFItot = 0, 0
 		# Group all feeders with the same name
-		for Date, Feeders in Date_Grouped_Outages.interitems():
-			SAIDIDay, SAIFIDay = self.GroupedUnplannedFaults.get(Date)
-			for Feeder, Stats in Feeders.interitems():
+		for Date, Feeders in Date_Grouped_Outages.iteritems():
+			SAIDIDay, SAIFIDay = self.GroupedUnplannedFaults.get(Date, [0, 0]) # Return 0 for records we can't find (3 or less ICPs)
+			SAIDItot += SAIDIDay
+			SAIFItot += SAIFIDay
+			for Feeder, Stats in Feeders.iteritems():
 				SAIDI0, SAIFI0 = Feeder_Grouped_Outages.get(Feeder, [0, 0])
-				SAIDI, SAIFI = Stats[0]/SAIDIDay, Stats[1]/SAIFIDay
+				#SAIDI, SAIFI = Stats[0]/SAIDIDay, Stats[1]/SAIFIDay
+				SAIDI, SAIFI = Stats[0], Stats[1] # The currently selected feeders contribution
 				Feeder_Grouped_Outages[Feeder] = [SAIDI0+SAIDI, SAIFI0+SAIFI]
+
 		# Now that the feeders are grouped by name, print their combined SAIDI and SAIFI
 		for Feeder, Stats in Feeder_Grouped_Outages.iteritems():
-			Table.append([Feeder, Stats[0], Stats[1]])
+			Table.append([Feeder, Stats[0]/SAIDItot*100, Stats[1]/SAIFItot*100])
 
 		with open(FilePath, "a") as results_file:
 			results_file.write(tabulate(Table, Headings,  tablefmt="orgtbl", floatfmt=".5f", 
