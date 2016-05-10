@@ -1,6 +1,6 @@
 import datetime, numpy as np
 from MSOffice.Excel.Charts import XlGraphs
-from MSOffice.Excel.Worksheets import Sheet
+from MSOffice.Excel.Worksheets import Sheet, Template
 from MSOffice.Excel.Launch import c
 from ..Constants import * 
 from .. import pos
@@ -347,6 +347,12 @@ class ORSOutput(ORSPlots):
 			self.Sheet.setRange(self.StatsSheet, row, CalcOrigin.col+Offset, [rowValue])
 			row += 1
 
+	def Create_Summary_Table(self):
+		"""Create a summary sheet in excel, delete it if it already exisits"""
+		# Remove the sheet, if it exists, then re-add it -- Don't do this when adding multiple networks
+		self.Sheet.rmvSheet(removeList=["YTD Monthly Breakdown"])
+		self.Sheet.addSheet("YTD Monthly Breakdown")
+
 	def Summary_Table(self, suffix):
 		"""Publish a summary of the year-to-date stats at the bottom of every sheet"""
 		suffix = " " + suffix
@@ -366,7 +372,7 @@ class ORSOutput(ORSPlots):
 			ColOffset = len(self.IndexHeadings) * len(self.DataHeadings) * (len(self.NetworkHeadings) - 1) + 1
 
 		maxrow = self.Sheet.getMaxRow(self.CalculationSheet+suffix, 1, 4)
-		self.Sheet.setRange(self.CalculationSheet+suffix, maxrow + RowOffset, 1, [[network]+TableHeadings]) # Write the heading data
+		self.Sheet.setRange("Summary", maxrow + RowOffset, 1, [[network]+TableHeadings]) # Write the heading data
 		
 		# Find the row that corrosponds to the current date
 		Dates = self.Sheet.getRange(self.CalculationSheet+suffix, 4, 1, maxrow, 1)
@@ -382,16 +388,38 @@ class ORSOutput(ORSPlots):
 				self.Sheet.getMaxCol(self.CalculationSheet+suffix, 2, 3))[0]
 			# Convert the row data to: CAP, TARGET, COLLAR, YTD Total, YTD Planned, YTD Unplanned
 			#YTD_row[ColOffset : len(DataHeadings)+ColOffset+1]
+			i = self.IndexHeadings.index(param)
 			TableRow = [YTD_row[ColOffset], YTD_row[ColOffset+1], YTD_row[ColOffset+2], 
-			   YTD_row[ColOffset+3] + YTD_row[ColOffset+4], YTD_row[ColOffset+3], YTD_row[ColOffset+4]]
+			   YTD_row[ColOffset+3] + YTD_row[ColOffset+4], YTD_row[ColOffset+3], 
+					[0.5*CC_Revenue_At_Risk.get(network, 0)/(self.ORS._get_stats("CAP")[i] - self.ORS._get_stats("TARGET")[i])]]
 
 			RowOffset += 1
-			self.Sheet.setRange(self.CalculationSheet+suffix, maxrow + RowOffset, 1, [[param]+TableRow]) # Write the heading data
+			self.Sheet.setRange("Summary", maxrow + RowOffset, 1, [[param]+TableRow]) # Write the heading data
 			ColOffset += len(self.DataHeadings)
 		
 		Table = []
-		Table.append(["Revenue at risk", CC_Max_Allowable_Rev.get(network, "No Revenue Found")]) 		# Revenue at Risk
+		Table.append(["Revenue at risk", CC_Revenue_At_Risk.get(network, "No Revenue Found")]) 		# Revenue at Risk
 		Table.append(["Total Number of ICPs", self.ORS._get_total_customers(Dates[index])]) 		# Total Number of ICPs
 		Table.append(["Year to date figures as of", Dates[index]]) 		# Date
-		self.Sheet.setRange(self.CalculationSheet+suffix, maxrow + RowOffset+1, 1, Table)
-			
+		self.Sheet.setRange("Summary", maxrow + RowOffset+1, 1, Table)
+
+	def YTD_Stats(self, suffix):
+		"""Use a template table to represent the results.
+		There will be tables for every month ending since the start of the new fiscal year."""
+		# Find the row that corrosponds to the current date; column values read in appear as a list of tuples
+		suffix = " " + suffix
+		Dates = self.Sheet.getRange(self.CalculationSheet+suffix, 4, 1, maxrow, 1)
+		Dates = [self.Sheet.getDateTime(Date[0]) for Date in Dates]
+		try:
+			currentDate = datetime.datetime.now()
+			index = Dates.index(datetime.datetime(currentDate.year, currentDate.month, currentDate.day))
+		except ValueError:
+			# We want the last date of the year, since  this date is not in the searched range
+			index = len(Dates) - 1
+
+		template = Template(self.Sheet, r"C:\Users\sdo\Documents\Research and Learning\Git Repos\SAIDI-SAIFI-Calculator\Data\Templates.xlsx")
+		template.Place_Template("Summary", self.Sheet._getCell("A1"))
+		params = {"DATE": Dates[index], "CUST_NO": self.ORS._get_total_customers(Dates[index]), "REV_RISK": CC_Revenue_At_Risk.get(network, "No Revenue Found"),
+			"SAIFI_YTD_CAP": 0, "SAIFI_YTD_TARGET": 0}
+		template.Set_Values(params)
+		template.Auto_Fit()

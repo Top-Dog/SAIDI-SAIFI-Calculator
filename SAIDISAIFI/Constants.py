@@ -32,11 +32,10 @@ CC_Vals = {
 				"SAIFI_TARGET" : 2.84602, "SAIFI_COLLAR" : 2.53380, "SAIFI_CAP" : 3.15824}
 	}
 
-# The maximum allowable revenue for non-exempt EDBs, 1/04/2015-31/3/2020
-CC_Max_Allowable_Rev = {
+# The maximum allowable revenue for non-exempt EDB * 1%  =revenue at risk (1/04/2015 - 31/3/2020)
+CC_Revenue_At_Risk = {
 	"OTPO" : 24780000,
 	"ELIN" : 13565000,
-	"TPCO" : 0,
 	}
 
 # Average customers on each network as of the end of the fincial year
@@ -57,7 +56,7 @@ CUST_NUMS = {
 		2014: 14781,
 		2015: 14806,
 		2016: 14836,
-		2017: 14866,
+		2017: 14871,
 		},
 	"LLNW" : {
 		2003: 0,
@@ -74,7 +73,7 @@ CUST_NUMS = {
 		2014: 192,    
 		2015: 268,    
 		2016: 448,
-		2017: 571,
+		2017: 589,
 		}, 
 	"ELIN" : {
 		2003: 16759,
@@ -91,7 +90,7 @@ CUST_NUMS = {
 		2014: 17257,
 		2015: 17333,
 		2016: 17326,
-		2017: 17319,
+		2017: 17323,
 		},
 	"TPCO" : {
 		2003: 31967,
@@ -108,6 +107,6 @@ CUST_NUMS = {
 		2014: 34789,
 		2015: 35002,
 		2016: 35245,
-		2017: 35282,
+		2017: 35246,
 		},
 }

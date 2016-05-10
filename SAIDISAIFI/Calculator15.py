@@ -537,13 +537,13 @@ class ORSCalculator(object):
 		if self.ABS_Diff(1e-2, SAIDIval, CCSAIDIVal):
 			SAIDIi = SAIDIval
 		else:
-			print "WARNING! The SAIDI (%s) values calculated differ from the CC values." % arg
+			print "WARNING! %s Diff(SAIDI (%s)) > tolerance" % (self.networknames, arg)
 			#SAIDIi = CCSAIDIVal
 			SAIDIi = SAIDIval
 		if self.ABS_Diff(1e-2, SAIFIval, CCSAIFIVal):
 			SAIFIi = SAIFIval
 		else:
-			print "WARNING! The SAIFI (%s) values calculated differ from the CC values." % arg
+			print "WARNING! %s Diff(SAIFI (%s)) > tolerance" % (self.networknames, arg)
 			#SAIFIi = CCSAIFIVal
 			SAIFIi = SAIFIval
 		return SAIDIi, SAIFIi

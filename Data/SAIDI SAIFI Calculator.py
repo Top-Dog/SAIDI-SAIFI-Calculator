@@ -63,8 +63,8 @@ def worker_networks(startdate, enddate, threadID, NetworkInQueue, NetworkOutQueu
 		DBG = SAIDISAIFI.CalculatorAux.ORSDebug(Network)
 		DBG.create_csv()
 
-		# Distrobution Automation stuff
-		Network.DA_Table("DA Table.txt", datetime.datetime(2014,4,1), datetime.datetime(2016,4,1))
+		# Distrobution Automation calculation over the display period (same interval as the output tables)
+		Network.DA_Table("DA Table.txt", startdate, enddate)
 
 		# Put the completed network into an output queue
 		NetworkOutQueue.put(Network)
@@ -118,6 +118,8 @@ if __name__ == "__main__":
 				xlPlotter.Create_Sheet(year)
 				# Populate Dates
 				xlPlotter.Fill_Dates(yrstart, year)
+				# Create the summary tables in Excel
+				xlTables.Create_Summary_Table()
 		
 		# Update the ComCom comparison table in excel
 		xlTables.Populate_Reliability_Stats()
