@@ -14,7 +14,7 @@ class ORSCalculator(object):
 	"""Calculator for the 2015 - 2020 period. After this period updates from the new determination
 	will need to be applied"""
 	def __init__(self, avrgCustomerNum, networkname,
-				 startDate=None, endDate=None):
+				 startDate=None, endDate=None, **kwargs):
 		self.FeederCol = 0
 		self.ORSNumCol = 1
 		self.LinkedORSCol = 2
@@ -66,8 +66,8 @@ class ORSCalculator(object):
 			pass
 			
 		# Initialise some class variables
-		self.boundarySAIDIValue = 0
-		self.boundarySAIFIValue = 0
+		self.boundarySAIDIValue = kwargs.get("boundarySAIDIValue", None)
+		self.boundarySAIFIValue = kwargs.get("boundarySAIFIValue", None)
 		
 		self.avrgCustomerNum = avrgCustomerNum
 
@@ -106,8 +106,11 @@ class ORSCalculator(object):
 			if self._get_fiscal_year(date) in self.BoundryCalcPeriod:
 				dic[date] = self.GroupedUnplannedFaults.get(date)
 		
-		self.boundarySAIDIValue = self.nth_largest(23, dic, 0) # Boundary SAIDI
-		self.boundarySAIFIValue = self.nth_largest(23, dic, 1) # Boundary SAIFI
+		# Only update the boundary values if they're not set
+		if self.boundarySAIDIValue is None:
+			self.boundarySAIDIValue = self.nth_largest(23, dic, 0) # Boundary SAIDI
+		if self.boundarySAIFIValue is None:
+			self.boundarySAIFIValue = self.nth_largest(23, dic, 1) # Boundary SAIFI
 	
 		return self.boundarySAIDIValue, self.boundarySAIFIValue
 		
@@ -259,6 +262,22 @@ class ORSCalculator(object):
 				#    break
 				
 		return SAIDIp+SAIDIup, SAIFIp+SAIFIup
+
+	def get_capped_days(self, day, end):
+		"""Return a list days that unplanned SAIDI xor SAIFI exceedded UBVs"""
+		UBVSAIDI = []
+		UBVSAIFI = []
+		while day <= end:
+			SAIDI1, SAIFI1 = self._get_indicies(day, "unplanned", applyBoundary=False)
+			SAIDI2, SAIFI2 = self._get_indicies(day, "unplanned", applyBoundary=True)
+			outage_numbers = self._get_ubv_outages(day)
+			if SAIDI1 != SAIDI2:
+				UBVSAIDI.append([day.date(), SAIDI1, SAIDI2, str(outage_numbers)])
+			if SAIFI1 != SAIFI2:
+				UBVSAIFI.append([day.date(), SAIFI1, SAIFI2, str(outage_numbers)])
+			day += self.deltaDay
+		return UBVSAIDI, UBVSAIFI
+		
 					
 	def get_fault(self, record, faultType):
 		"""This method will only count PNL related outages, and discard all others -- this is not quite working yet"""
@@ -440,6 +459,10 @@ class ORSCalculator(object):
 		self.generate_fault_dict('all', self.AllFaults, self.GroupedAllFaults)
 		assert len(self.AllFaults) != 0, "No faults found! The supplied network name is proably incorrect."
 		self._set_boundary_values()
+		# OJV is a special case, deal to it here
+		#if self.networknames[0] == "OTPO":
+		#	self.boundarySAIDIValue = 13.2414436340332
+		#	self.boundarySAIFIValue = 0.176474571228027
 		
 		# A trivial check to make sure that all faults are either planned or unplanned (class B or C type outages)
 		# and placed into the right dictionaries
@@ -538,14 +561,18 @@ class ORSCalculator(object):
 			SAIDIi = SAIDIval
 		else:
 			print "WARNING! %s Diff(SAIDI (%s)) > tolerance" % (self.networknames, arg)
-			#SAIDIi = CCSAIDIVal
-			SAIDIi = SAIDIval
+			if "OTPO" in self.networknames:
+				SAIDIi = CCSAIDIVal
+			else:
+				SAIDIi = SAIDIval
 		if self.ABS_Diff(1e-2, SAIFIval, CCSAIFIVal):
 			SAIFIi = SAIFIval
 		else:
 			print "WARNING! %s Diff(SAIFI (%s)) > tolerance" % (self.networknames, arg)
-			#SAIFIi = CCSAIFIVal
-			SAIFIi = SAIFIval
+			if "OTPO" in self.networknames:
+				SAIFIi = CCSAIFIVal
+			else:
+				SAIFIi = SAIFIval
 		return SAIDIi, SAIFIi
 	
 	def ABS_Diff(self, tolerance, *args):
@@ -591,7 +618,48 @@ class ORSCalculator(object):
 
 		with open(FilePath, "a") as results_file:
 			results_file.write(tabulate(Table, Headings,  tablefmt="orgtbl", floatfmt=".5f", 
+				numalign="right"))
+
+	def _get_ubv_outages(self, date):
+		"""Get all the unplanned outages that occur on the date of a UBV outage"""
+		orsnums = []
+		for LinkedORSNum, Dataset in self.UnplannedFaults.iteritems(): # key = linked ORS, values = [date, SAIDI, SAIFI, unique ICP count. Feeder]
+			if Dataset[0] == date:
+				orsnums.append(LinkedORSNum)
+		return orsnums
+
+	def _rm_file(self, filename):
+		# Remove any existing file in the same directory
+		FilePath = self.remove_file(filename)
+		if not os.path.exists(os.path.dirname(FilePath)):
+			try:
+				os.makedirs(os.path.dirname(FilePath))
+			except OSError as exc: # Guard against race condition
+				if exc.errno != errno.EEXIST:
+					raise
+		return FilePath
+	
+	def _table(self, filename, headings, table, newlines=0):
+		# Create a new file
+		with open(filename, "a") as results_file:
+			results_file.write(tabulate(table, headings,  tablefmt="orgtbl", floatfmt=".5f", 
 				numalign="right")) 
+			for i in range(newlines+1):
+				results_file.write("\n")
+
+	def Capped_Outages_Table(self, filename, startdate, enddate):
+		# Remove any existing file in the same directory
+		filename = self._rm_file(filename)
+
+		SAIDIDays, SAIFIDays = self.get_capped_days(startdate, enddate)
+
+		# Build the SAIDI table
+		Headings = ["Date", "Pre-Normalised (SAIDI)", "Normalised (SAIDI)", "ORS Number(s)"]
+		self._table(filename, Headings, SAIDIDays, 2)
+
+		# Build the SAIFI table
+		Headings = ["Date", "Pre-Normalised (SAIFI)", "Normalised (SAIFI)", "ORS Number(s)"]
+		self._table(filename, Headings, SAIFIDays)
 
 	def display_stats(self, resolution, fileName):
 		"""Method that creates tables for displaying data

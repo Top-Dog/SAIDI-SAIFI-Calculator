@@ -32,7 +32,7 @@ CC_Vals = {
 				"SAIFI_TARGET" : 2.84602, "SAIFI_COLLAR" : 2.53380, "SAIFI_CAP" : 3.15824}
 	}
 
-# The maximum allowable revenue for non-exempt EDB * 1%  =revenue at risk (1/04/2015 - 31/3/2020)
+# The maximum allowable revenue for non-exempt EDB * 1%  = revenue at risk (1/04/2015 - 31/3/2020)
 CC_Revenue_At_Risk = {
 	"OTPO" : 24780000,
 	"ELIN" : 13565000,

@@ -52,7 +52,12 @@ def worker_networks(startdate, enddate, threadID, NetworkInQueue, NetworkOutQueu
 		for name in names:
 			ICPs.append(ICPNums.get(name))
 
-		Network = ORSCalculator(sum_like_keys(ICPs), NetworkName, startdate, enddate)
+		# Deal with OJV's boundary values differently
+		if "OTPO" in NetworkName:
+			Network = ORSCalculator(sum_like_keys(ICPs), NetworkName, startdate, enddate, boundarySAIDIValue=13.2414436340332, boundarySAIFIValue=0.176474571228027)
+		else:
+			Network = ORSCalculator(sum_like_keys(ICPs), NetworkName, startdate, enddate)
+
 		Network.generate_stats()
 		Network.display_stats("outage", "Individual Outages.txt")
 		Network.display_stats("month", "Results Table - Monthly.txt")
@@ -65,6 +70,7 @@ def worker_networks(startdate, enddate, threadID, NetworkInQueue, NetworkOutQueu
 
 		# Distrobution Automation calculation over the display period (same interval as the output tables)
 		Network.DA_Table("DA Table.txt", startdate, enddate)
+		Network.Capped_Outages_Table("UBV Outages.txt", datetime.datetime(2015,4,1), datetime.datetime(2016,3,31))
 
 		# Put the completed network into an output queue
 		NetworkOutQueue.put(Network)
@@ -134,7 +140,7 @@ if __name__ == "__main__":
 			year = str(yrstart.year)
 			xlPlotter.Populate_Fixed_Stats(year) # Com Com table values scaled linearly
 			xlPlotter.Populate_Daily_Stats(year) # Daily real world SAIDI/SAIDI
-			xlTables.Summary_Table(year)
+			#xlTables.Summary_Table(year)
 			xlPlotter.Create_Graphs(year)
 			pb.update_paced()
 		

@@ -1,6 +1,6 @@
 import datetime, numpy as np
 from MSOffice.Excel.Charts import XlGraphs
-from MSOffice.Excel.Worksheets import Sheet, Template
+from MSOffice.Excel.Worksheets import Sheet, Template, shtRange
 from MSOffice.Excel.Launch import c
 from ..Constants import * 
 from .. import pos
@@ -145,10 +145,23 @@ class ORSPlots(): # ORSCalculator
 		return TimeStamps
 
 	def Fill_Dates(self, date, suffix):
-		"""Fill the date column in hte Excel sheet with the date values read from the parser"""
+		"""Fill the date column in the Excel sheet with the date values read from the parser"""
 		suffix = " " + suffix
 		row, col = \
 			self.Sheet.setRange(self.CalculationSheet+suffix, self.DateOrigin.row, self.DateOrigin.col, self.Generate_Dates(date))
+
+	def _Correct_Graph_Slope(self, suffix, enddate=datetime.datetime.now()):
+		"""When the data is truncated for stacked area charts we need two of the same end dates
+		in a row to create a vertical drop on the graph, otherwise it slopes with delta x = one time interval"""
+		suffix = " " + suffix
+		searchterm = datetime.datetime(enddate.year, enddate.month, enddate.day).date().__str__().split('-')
+		searchterm = searchterm[2] + '/' + searchterm[1] + '/' + searchterm[0]
+
+		maxrow = self.Sheet.getMaxRow(self.CalculationSheet+suffix, 1, 4)
+		results = self.Sheet.search(shtRange(self.CalculationSheet+suffix, None, 4, 1, maxrow, 1), 
+						searchterm)
+		if len(results) == 1:
+			self.Sheet.setCell(self.CalculationSheet+suffix, results[0].Row+1, 1, results[0].Value)
 
 	def Populate_Fixed_Stats(self, suffix):
 		"""Create series values for the Limit, Cap, and Collar. 
@@ -191,11 +204,28 @@ class ORSPlots(): # ORSCalculator
 		RowHeadings = ["Unplanned", "Capped Unplanned", "Planned"] # The order the rows appear in the Excel spreadsheet
 		
 		self.Sheet.set_calculation_mode("manual")
-		FiscalyearDays = self.Sheet.getRange(sheetname, 4, 1, self.Sheet.getMaxRow(sheetname, 1, 4), 1)
-		FiscalyearDays = [self.Sheet.getDateTime(date[0]) for date in FiscalyearDays]
+		startdate = self.Sheet.getDateTime(self.Sheet.getCell(sheetname, 4, 1))
+		enddate = self.Sheet.getDateTime(self.Sheet.getCell(sheetname, self.Sheet.getMaxRow(sheetname, 1, 4), 1))
+		delta_days = (enddate - startdate).days +  1
+		FiscalyearDays = [startdate + datetime.timedelta(days=i) for i in range(delta_days)]
+		#FiscalyearDays = self.Sheet.getRange(sheetname, 4, 1, self.Sheet.getMaxRow(sheetname, 1, 4), 1)
+		#FiscalyearDays = [self.Sheet.getDateTime(date[0]) for date in FiscalyearDays]
 		SAIDIcol = []
 		SAIFIcol = []
 		row = 4
+		
+		# Truncate the data if it is for the present year
+		maxrow = self.Sheet.getMaxRow(sheetname, 1, 4)
+		enddate = datetime.datetime.now()
+		searchterm = datetime.datetime(enddate.year, enddate.month, enddate.day).date().__str__().split('-')
+		searchterm = searchterm[2] + '/' + searchterm[1] + '/' + searchterm[0]
+		searchresult = self.Sheet.search(shtRange(sheetname, None, 4, 1, maxrow, 1), 
+							  searchterm)
+		if len(searchresult) == 1 or len(searchresult) == 2:
+			StopTime = self.Sheet.getDateTime(searchresult[0].Value)
+		else:
+			StopTime = FiscalyearDays[-1]
+
 		for day in FiscalyearDays:
 			SAIDIrow = []
 			SAIFIrow = []
@@ -208,8 +238,7 @@ class ORSPlots(): # ORSCalculator
 			x, y = self.ORS._get_indicies(day, "unplanned", applyBoundary=False)
 			SAIDIrow.append(x-SAIDIrow[1])
 			SAIFIrow.append(y-SAIFIrow[1])
-			
-			# Add the new rows to the table stored in memmory
+
 			SAIDIcol.append(SAIDIrow)
 			SAIFIcol.append(SAIFIrow)
 			
@@ -226,12 +255,17 @@ class ORSPlots(): # ORSCalculator
 		SAIFITable = []
 		row = 4
 		# Loop through every row
-		for SAIDIrow, SAIFIrow in zip(SAIDIcol, SAIFIcol):
+		for SAIDIrow, SAIFIrow, day in zip(SAIDIcol, SAIFIcol, FiscalyearDays):
 			ColumnIndex = 0
 			# Loop through every column
 			for SAIDIval, SAIFIval in zip(SAIDIrow, SAIFIrow):
-				SAIDIsums[ColumnIndex] += SAIDIval
-				SAIFIsums[ColumnIndex] += SAIFIval
+				# Add the new rows to the table stored in memmory
+				if day <= StopTime: # means we will stop on the current day, but then fixing graph slopes break
+					SAIDIsums[ColumnIndex] += SAIDIval
+					SAIFIsums[ColumnIndex] += SAIFIval
+				else:
+					SAIDIsums[ColumnIndex] = None
+					SAIFIsums[ColumnIndex] = None
 				ColumnIndex += 1
 			#self.Sheet.setRange(sheetname, row, ColOffset, [SAIDIsums])
 			#self.Sheet.setRange(sheetname, row, ColOffset+len(self.DataHeadings), [SAIFIsums])
@@ -241,6 +275,7 @@ class ORSPlots(): # ORSCalculator
 			
 		self.Sheet.setRange(sheetname, 4, ColOffset, SAIDITable)
 		self.Sheet.setRange(sheetname, 4, ColOffset+len(self.DataHeadings), SAIFITable)
+		self._Correct_Graph_Slope(suffix) # Makes the area plot look a bit better, but mutates the data source, so must be run last
 		self.Sheet.set_calculation_mode("automatic")
 	
 	def Create_Graphs(self, suffix):
