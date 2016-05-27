@@ -375,6 +375,19 @@ class ORSSheets(ORSPlots):
 		template.Set_Values(out)
 		template.Auto_Fit() # Handles the closing of the template file
 
+	def YTD_Book(self, *params):
+		"""Create a new workbook with PNL Commercial Summary table"""
+		params = iter(params)
+		out = params.next()
+		for p in params:
+			out = self.Merge_Dictionaries(out, p)
+
+		
+		template = Template(Sheet(xlInstance), r"C:\Users\sdo\Documents\Research and Learning\Git Repos\SAIDI-SAIFI-Calculator\Data\Templates.xlsx")
+		template.Place_Template("Rob", self.Sheet._getCell(self.OutputFileName, 1 ,1))
+		template.Set_Values(out)
+		template.Auto_Fit() # Handles the closing of the template file
+
 	def Rename_Network(self, networkname):
 		name = ""
 		if networkname == "TPCO":
