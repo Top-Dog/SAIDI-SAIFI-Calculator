@@ -161,7 +161,7 @@ class ORSCalculator(object):
 			# Get the stats for a new record in the ORS
 			Date, SAIDI, SAIFI = self.get_fault(record, FaultType)
 			ICPcount = record[self.UniqueICPCol]
-			Feeder = record[self.FeederCol] # TODO: fix this line, make sure that empty string or NONE is handeled
+			Feeder = record[self.FeederCol]
 			if type(ICPcount) is not int:
 				try:
 					ICPcount = float(record[self.UniqueICPCol].replace(',', ''))
@@ -181,9 +181,9 @@ class ORSCalculator(object):
 					IndividualFaults[record[self.LinkedORSCol]] = [Date0, SAIDI0 + SAIDI, SAIFI0 + SAIFI, ICPcount0 + ICPcount, Feeder0]
 			else:
 				if SAIDI != 0 and SAIFI != 0:
-					IndividualFaults[record[self.ORSNumCol]] = [Date, SAIDI, SAIFI, ICPcount, Feeder0]
+					IndividualFaults[record[self.ORSNumCol]] = [Date, SAIDI, SAIFI, ICPcount, Feeder]
 	
-	def _group_same_day(self, dic, sortedDic):
+	def _group_same_dayOLD(self, dic, sortedDic):
 		# sortedDic: key = date, Values = [SAIDI, SAIFI]
 		'''Look through each unique Linked ORS number dictionary and group same dates (days) together'''
 		#currentDate = self.startDate
@@ -206,6 +206,23 @@ class ORSCalculator(object):
 							print "String to float cast failed. No valid data for: ", currentDate
 							print dic.get(faultkey)
 			currentDate += self.deltaDay
+
+	def _group_same_day(self, dic, sortedDic):
+		# sortedDic: key = date, Values = [SAIDI, SAIFI, NumberOfOutages]
+		'''Look through each unique Linked ORS number dictionary and group same dates (days) together'''
+		for LinkedORSNum, Buff in dic.iteritems():
+			if Buff[0] >= min(self.CCStartDate, self.startDate) and Buff[0] <= max(self.CCEndDate, self.endDate): # The DB query already enforces a date criteria, so this line is probably not needed
+				GroupedDays = sortedDic.get(Buff[0], [0, 0, 0])
+				if self.Count3OrLessICPs or Buff[0] >= self.threeICPStartDate:
+					sortedDic[Buff[0]] = [GroupedDays[0] + Buff[1], GroupedDays[1] + Buff[2], GroupedDays[2] + 1]
+				else:
+					try:
+						if Buff[3] > 3.0 and Buff[0] < self.threeICPStartDate:
+							# Don't count faults that defined by linked ID affect less than or equal to 3 ICPs
+							sortedDic[Buff[0]] = [GroupedDays[0] + Buff[1], GroupedDays[1] + Buff[2], GroupedDays[2] + 1]                     
+					except:
+						print "String to float cast failed. No valid data for: ", Buff[0]
+						print Buff
 
 	def _group_same_feeder(self, dic, sortedDic, startdate, enddate):
 		"""Group outages by day and by feeder, so the sorted dictinary will contain 
@@ -235,7 +252,7 @@ class ORSCalculator(object):
 		SAIFIp = 0
 		SAIDIup = 0 # unplanned
 		SAIFIup = 0
-		DefaultValues = [0, 0]
+		DefaultValues = [0, 0, 0]
 
 		if faultType == "planned" or faultType == "all":
 			dic = self.GroupedPlannedFaults
@@ -603,7 +620,7 @@ class ORSCalculator(object):
 		SAIDItot, SAIFItot = 0, 0
 		# Group all feeders with the same name
 		for Date, Feeders in Date_Grouped_Outages.iteritems():
-			SAIDIDay, SAIFIDay = self.GroupedUnplannedFaults.get(Date, [0, 0]) # Return 0 for records we can't find (3 or less ICPs)
+			SAIDIDay, SAIFIDay, FaultsCount = self.GroupedUnplannedFaults.get(Date, [0, 0, 0]) # Return 0 for records we can't find (3 or less ICPs)
 			SAIDItot += SAIDIDay
 			SAIFItot += SAIFIDay
 			for Feeder, Stats in Feeders.iteritems():
@@ -662,6 +679,7 @@ class ORSCalculator(object):
 		self._table(filename, Headings, SAIFIDays)
 
 	def display_stats(self, resolution, fileName):
+		# Very slow method.. needs some tlc
 		"""Method that creates tables for displaying data
 		Replacement method for annual_stats"""
 		self.table = []
@@ -670,13 +688,7 @@ class ORSCalculator(object):
 				   "Linked ORS #", "|", 
 				   "Planned SAIDI", "Unplanned SAIDI", "Total SAIDI", "|", 
 				   "Planned SAIFI", "Unplanned SAIFI", "Total SAIFI"]
-		FilePath = self.remove_file(fileName)
-		if not os.path.exists(os.path.dirname(FilePath)):
-			try:
-				os.makedirs(os.path.dirname(FilePath))
-			except OSError as exc: # Guard against race condition
-				if exc.errno != errno.EEXIST:
-					raise
+		FilePath = self._rm_file(fileName)
 		
 		PeriodEndings = self.period_endings(resolution)
 		# Totals for the period resolution (year, month...)
@@ -695,28 +707,42 @@ class ORSCalculator(object):
 			Total_UP_SAIDI_Period += unplannedSAIDI
 			Total_P_SAIFI_Period += plannedSAIFI
 			Total_UP_SAIFI_Period += unplannedSAIFI
+			NumCustomers = self._get_total_customers(currentDate)
 			
 			if resolution == "outage":                
 				# Dictionary values: [Date0, SAIDI0, SAIFI0, ICPcount0]
 				# Planned events first
-				for LinkedORSNum in self.PlannedFaults:
-					Record = self.PlannedFaults.get(LinkedORSNum)
+				#for LinkedORSNum in self.PlannedFaults:
+				#	Record = self.PlannedFaults.get(LinkedORSNum)
+				#	if Record[0] == currentDate:
+				#		self._add_table_record(currentDate, self._get_total_customers(currentDate),
+				#		   LinkedORSNum,
+				#		   Record[1], 0,
+				#		   Record[2], 0)
+				for LinkedORSNum, Record in self.PlannedFaults.iteritems():
 					if Record[0] == currentDate:
-						self._add_table_record(currentDate, self._get_total_customers(currentDate),
+						self._add_table_record(currentDate, NumCustomers,
 						   LinkedORSNum,
 						   Record[1], 0,
 						   Record[2], 0)
+
 				# Unplanned events second
-				for LinkedORSNum in self.UnplannedFaults:
-					Record = self.UnplannedFaults.get(LinkedORSNum)
+				#for LinkedORSNum in self.UnplannedFaults:
+				#	Record = self.UnplannedFaults.get(LinkedORSNum)
+				#	if Record[0] == currentDate:
+				#		self._add_table_record(currentDate, self._get_total_customers(currentDate),
+				#		   LinkedORSNum,
+				#		   0, Record[1],
+				#		   0, Record[2])
+				for LinkedORSNum, Record in self.UnplannedFaults.iteritems():
 					if Record[0] == currentDate:
-						self._add_table_record(currentDate, self._get_total_customers(currentDate),
+						self._add_table_record(currentDate, NumCustomers,
 						   LinkedORSNum,
 						   0, Record[1],
 						   0, Record[2])
 						
 			elif currentDate in PeriodEndings:
-				self._add_table_record(currentDate, self._get_total_customers(currentDate),
+				self._add_table_record(currentDate, NumCustomers,
 					   "N/A",
 					   Total_P_SAIDI_Period, Total_UP_SAIDI_Period,
 					   Total_P_SAIFI_Period, Total_UP_SAIFI_Period)
@@ -755,7 +781,7 @@ class ORSCalculator(object):
 												pSAIFI, upSAIFI):
 		"""Adds a row to the table"""
 		# E.g. formatting floats: "{0:.5f}".format(monthlySAIDI)
-		monthAbbr = {month: abbr for month,abbr in enumerate(calendar.month_abbr)}
+		monthAbbr = {month: abbr for month, abbr in enumerate(calendar.month_abbr)}
 		self.table.append([self._date_to_str(date) + ' (' + monthAbbr.get(date.month) + ')', "|", str(round(NumICPs, 1)),
 						   "|", LinkedORSNo,
 						   "|", pSAIDI, upSAIDI, pSAIDI+upSAIDI, 

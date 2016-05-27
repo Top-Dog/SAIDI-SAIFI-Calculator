@@ -76,7 +76,7 @@ def worker_networks(startdate, enddate, threadID, NetworkInQueue, NetworkOutQueu
 		NetworkOutQueue.put(Network)
 
 
-if __name__ == "__main__":    
+if __name__ == "__main__":
 	starttime = datetime.datetime.now()
 	# Get the currently active MS Excel Instace
 	try:
@@ -90,8 +90,10 @@ if __name__ == "__main__":
 	p = Parser.ParseORS(xl)
 	# All ICP counts are averages as of the 31 March i.e. fincial year ending
 	ICPNums = p.Read_Num_Cust()
-	
 	startdate, enddate = p.Read_Dates_To_Publish()
+
+	# Setup the output handlers
+	xlDocument = Output.ORSSheets(xl)
 
 	Networks = ["OTPO, LLNW", "ELIN", "TPCO"]
 	NetworkInQueue = multiprocessing.Queue(maxsize=len(Networks))
@@ -109,11 +111,17 @@ if __name__ == "__main__":
 	
 	# Work with Excel COM to produce graphs for one network at a time (avoid COM threading/asyncronous behaviour)
 	num_networks = 0
+	ReportValues = {}
 	while num_networks < len(Networks):
+		# Get a network that has completed its calculations
 		Network = NetworkOutQueue.get(True) # Blocks indefinetly if nothing is in the queue
 		
+		# Create a new instance of the plot and table generator (for Excel output)
 		xlPlotter = Output.ORSPlots(Network, xl)
 		xlTables = Output.ORSOutput(Network, xl)
+
+		# Populate a dictionary that contains the keys for populating pre-built Excel template sheets
+		ReportValues = xlDocument.Merge_Dictionaries(ReportValues, xlTables.Generate_Values(datetime.datetime(2016, 3, 31)))
 		
 		# Only do this once, for the very first network being run - setup the excel book
 		if num_networks == 0:
@@ -139,9 +147,9 @@ if __name__ == "__main__":
 		for yrstart in p.StartDates:       
 			year = str(yrstart.year)
 			xlPlotter.Populate_Fixed_Stats(year) # Com Com table values scaled linearly
-			xlPlotter.Populate_Daily_Stats(year) # Daily real world SAIDI/SAIDI
+			xlPlotter.Populate_Daily_Stats(datetime.datetime(yrstart.year+1, 3, 31)) # Daily real world SAIDI/SAIDI
 			#xlTables.Summary_Table(year)
-			xlPlotter.Create_Graphs(year)
+			xlPlotter.Create_Graphs(datetime.datetime(yrstart.year+1, 3, 31))
 			pb.update_paced()
 		
 		# Wait for the progress bar to complete to 100%
@@ -151,6 +159,9 @@ if __name__ == "__main__":
 	# Wait for all workers to finish
 	for process in processes:
 		process.join()
+
+	# Populate the Excel template sheets
+	xlDocument.YTD_Table(ReportValues)
 	
 	# Let the user know that we are done
 	print "Task completed in %d seconds" % (datetime.datetime.now() - starttime).seconds
