@@ -69,15 +69,19 @@ def worker_networks(startdate, enddate, threadID, NetworkInQueue, NetworkOutQueu
 		DBG.create_csv()
 
 		# Distrobution Automation calculation over the display period (same interval as the output tables)
-		Network.DA_Table("DA Table.txt", startdate, enddate)
-		Network.Capped_Outages_Table("UBV Outages.txt", datetime.datetime(2015,4,1), datetime.datetime(2016,3,31))
+		_Start_Time = datetime.datetime(2015, 4, 1)
+		_End_Time = datetime.datetime(2016, 3, 31)
+		Network.DA_Table("DA Table.txt", _Start_Time, _End_Time)
+		Network.Capped_Outages_Table("UBV Outages.txt", _Start_Time, _End_Time)
 
 		# Put the completed network into an output queue
 		NetworkOutQueue.put(Network)
 
 
 if __name__ == "__main__":
+	# Start clock for timing the app's execution time
 	starttime = datetime.datetime.now()
+
 	# Get the currently active MS Excel Instace
 	try:
 		xl = Excel.Launch.Excel(visible=True, runninginstance=True)
@@ -87,14 +91,17 @@ if __name__ == "__main__":
 		time.sleep(5)
 		sys.exit()
 
+	# Handles reading all the data from the UI (Excel)
 	p = Parser.ParseORS(xl)
-	# All ICP counts are averages as of the 31 March i.e. fincial year ending
-	ICPNums = p.Read_Num_Cust()
-	startdate, enddate = p.Read_Dates_To_Publish()
+	ICPNums = p.Read_Num_Cust() # The average number of unique ICPs to be used in the calcs
+	startdate, enddate = p.Read_Dates_To_Publish() # Determine the minimum date range to run the calculator
+	Last_Pub_Date = p.Read_Last_Date() # This will be used in "Rob's" table used for commercial
+	user_last_date = "User Defined" # The name to be appened to "Calculation" for custom date range sheet (uses Last_Pub_Date)
 
 	# Setup the output handlers
 	xlDocument = Output.ORSSheets(xl)
 
+	# Unique names for each (group of) network(s)
 	Networks = ["OTPO, LLNW", "ELIN", "TPCO"]
 	NetworkInQueue = multiprocessing.Queue(maxsize=len(Networks))
 	NetworkOutQueue = multiprocessing.Queue(maxsize=len(Networks))
@@ -121,7 +128,7 @@ if __name__ == "__main__":
 		xlTables = Output.ORSOutput(Network, xl)
 
 		# Populate a dictionary that contains the keys for populating pre-built Excel template sheets
-		ReportValues = xlDocument.Merge_Dictionaries(ReportValues, xlTables.Generate_Values(datetime.datetime(2016, 3, 31)))
+		ReportValues = xlDocument.Merge_Dictionaries(ReportValues, xlTables.Generate_Values(Last_Pub_Date))
 		
 		# Only do this once, for the very first network being run - setup the excel book
 		if num_networks == 0:
@@ -134,12 +141,15 @@ if __name__ == "__main__":
 				xlPlotter.Fill_Dates(yrstart, year)
 				# Create the summary tables in Excel
 				xlTables.Create_Summary_Table()
+			# Extra Graph
+			xlPlotter.Create_Sheet(user_last_date)
+			xlPlotter.Fill_Dates(datetime.datetime(xlPlotter._get_fiscal_year(Last_Pub_Date), 4, 1), user_last_date)
 		
 		# Update the ComCom comparison table in excel
 		xlTables.Populate_Reliability_Stats()
 		
 		# Create a new progress bar
-		pb = ProgressBar(len(p.StartDates), "SAIDI/SAIFI graph(s)")
+		pb = ProgressBar(len(p.StartDates)+1, "SAIDI/SAIFI graph(s)")
 		pb_thread = threading.Thread(target=update_prog_bar, args=(pb,))
 		pb_thread.start()
 		
@@ -147,10 +157,15 @@ if __name__ == "__main__":
 		for yrstart in p.StartDates:       
 			year = str(yrstart.year)
 			xlPlotter.Populate_Fixed_Stats(year) # Com Com table values scaled linearly
-			xlPlotter.Populate_Daily_Stats(datetime.datetime(yrstart.year+1, 3, 31)) # Daily real world SAIDI/SAIDI
+			xlPlotter.Populate_Daily_Stats(datetime.datetime(yrstart.year+1, 3, 31), year) # Daily real world SAIDI/SAIDI
 			#xlTables.Summary_Table(year)
-			xlPlotter.Create_Graphs(datetime.datetime(yrstart.year+1, 3, 31))
+			xlPlotter.Create_Graphs(datetime.datetime(yrstart.year+1, 3, 31), year)
 			pb.update_paced()
+		# Extra Graph
+		xlPlotter.Populate_Fixed_Stats(user_last_date)
+		xlPlotter.Populate_Daily_Stats(Last_Pub_Date, user_last_date)
+		xlPlotter.Create_Graphs(Last_Pub_Date, user_last_date)
+		pb.update_paced()
 		
 		# Wait for the progress bar to complete to 100%
 		pb_thread.join()
@@ -160,9 +175,10 @@ if __name__ == "__main__":
 	for process in processes:
 		process.join()
 
-	# Populate the Excel template sheets
-	xlDocument.YTD_Table(ReportValues)
+	# Populate Excel template sheets - Any future dates will be set to todays date
+	xlDocument.YTD_Sheet(ReportValues)
+	xlDocument.YTD_Book(SAIDISAIFI.Constants.FILE_DIRS.get("GENERAL")+r"\Robs test.xlsx", ReportValues)
 	
-	# Let the user know that we are done
+	# Let the user know that we are done - show the execution time
 	print "Task completed in %d seconds" % (datetime.datetime.now() - starttime).seconds
 	raw_input("Done. Press the return key to exit.")

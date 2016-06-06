@@ -1,7 +1,7 @@
-import datetime, numpy as np
+import datetime, os, numpy as np
 from MSOffice.Excel.Charts import XlGraphs
 from MSOffice.Excel.Worksheets import Sheet, Template, shtRange
-from MSOffice.Excel.Launch import c
+from MSOffice.Excel.Launch import Excel, c
 from ..Constants import * 
 from .. import pos
 
@@ -62,7 +62,7 @@ class ORSPlots(object): # ORSCalculator
 			self.Create_Sheet(year)
 			self.Fill_Dates(date, year)
 			self.Populate_Fixed_Stats(year) # Com Com table values scaled linearly
-			self.Populate_Daily_Stats(date) # Daily real world SAIDI/SAIDI
+			self.Populate_Daily_Stats(date, year) # Daily real world SAIDI/SAIDI
 			
 			self.Create_Graphs(date)
 	
@@ -138,8 +138,8 @@ class ORSPlots(object): # ORSCalculator
 		"""When the data is truncated for stacked area charts we need two of the same end dates
 		in a row to create a vertical drop on the graph, otherwise it slopes with delta x = one time interval"""
 		suffix = " " + suffix
-		searchterm = datetime.datetime(enddate.year, enddate.month, enddate.day).date().__str__().split('-')
-		searchterm = searchterm[2] + '/' + searchterm[1] + '/' + searchterm[0]
+		searchterm = datetime.datetime(enddate.year, enddate.month, enddate.day)
+		searchterm = searchterm.strftime(str(searchterm.day) + "/%m/%Y") # Get rid of the zero padding (%e and %-d don't work on Windows)
 
 		maxrow = self.Sheet.getMaxRow(self.CalculationSheet+suffix, 1, 4)
 		results = self.Sheet.search(shtRange(self.CalculationSheet+suffix, None, 4, 1, maxrow, 1), 
@@ -149,7 +149,6 @@ class ORSPlots(object): # ORSCalculator
 
 	def _Correct_Graph_Axis(self, ChartName, enddate=datetime.datetime.now()):
 		"""Adds the final end of year date to the x axis e.g. 31/3/xxxx"""
-		#ChartName = FullName + " " + stat + " YTD as at " + enddate.date().__str__()
 		self.Graphs.Set_Max_X_Value(ChartName, enddate) 
 
 	def Populate_Fixed_Stats(self, suffix):
@@ -204,14 +203,14 @@ class ORSPlots(object): # ORSCalculator
 			#row += 1
 		return SAIDIcol, SAIFIcol
 		
-	def Populate_Daily_Stats(self, enddate=datetime.datetime.now()):
+	def Populate_Daily_Stats(self, enddate, FiscalYear):
 		"""Create series values for the Planned and Unplanned SAIDI/SAIFI. 
 		Populate the excel sheet with these values."""
-		FiscalYear = str(self._get_fiscal_year(enddate))
+		# enddate = datetime.datetime.now() (default option)
+		#FiscalYear = str(self._get_fiscal_year(enddate))
 		sheetname = self.CalculationSheet + " " + FiscalYear
 		if enddate > datetime.datetime.now():
 			enddate = datetime.datetime.now()
-		print "Debug, the new enddate:", enddate
 
 		network = self.ORS.networknames[0]
 		ColOffset = 5 # Magic number: offset of the column in the data table
@@ -231,8 +230,8 @@ class ORSPlots(object): # ORSCalculator
 		# Truncate the data if it is for the present year
 		maxrow = self.Sheet.getMaxRow(sheetname, 1, 4)
 		#enddate = datetime.datetime.now() # Use this variable to force the graphs to only display a limited set of information
-		searchterm = datetime.datetime(enddate.year, enddate.month, enddate.day).date().__str__().split('-')
-		searchterm = searchterm[2] + '/' + searchterm[1] + '/' + searchterm[0]
+		searchterm = datetime.datetime(enddate.year, enddate.month, enddate.day)
+		searchterm = searchterm.strftime(str(searchterm.day) + "/%m/%Y")  # Get rid of the zero padding (%e and %-d don't work on Windows)
 		searchresult = self.Sheet.search(shtRange(sheetname, None, 4, 1, maxrow, 1), 
 							  searchterm)
 		if len(searchresult) == 1 or len(searchresult) == 2: # There could be two dates, if we are duplicating the end date to achieve a vertical truncation on our stacked area chart
@@ -279,13 +278,16 @@ class ORSPlots(object): # ORSCalculator
 			year -= 1
 		return year
 	
-	def Create_Graphs(self, enddate):
-		"""Create the SAIDI/SAIFI chart"""
-		FiscalYear = str(self._get_fiscal_year(enddate))
-		graphenddate = None
-		if enddate == datetime.datetime(int(FiscalYear)+1, 3, 31):
-			graphenddate = datetime.datetime(int(FiscalYear)+1, 4, 1)
+	def Create_Graphs(self, enddate, sheetname_suffix):
+		"""Create the SAIDI/SAIFI chart
+		@param enddate: Used to set the x axis on the chart and name the chart"""
+		FiscalYear = self._get_fiscal_year(enddate) # (default option for sheetname)
 
+		# Always set the end date of the graph to be the 1/4/xxxx (you may want to change this in future)
+		if True:
+			graphenddate = datetime.datetime(FiscalYear+1, 4, 1)
+
+		# Used to set the name of the chart...
 		if enddate > datetime.datetime.now():
 			enddate = datetime.datetime.now()
 
@@ -307,19 +309,29 @@ class ORSPlots(object): # ORSCalculator
 		
 		ylables = ["Average Outage Duration (Minutes/ICP)", "Average No. Outages (Interruptions/ICP)"]
 		for stat in self.IndexHeadings:
-			ChartName = FullName + " " + stat + " YTD as at " + enddate.date().__str__()
-			self.Graphs.Create_Chart(ChartName, self.Generate_Date_Range(FiscalYear),
-					sheetname=self.CalculationSheet + " " + FiscalYear)
+			ChartName = datetime.datetime(enddate.year, enddate.month, enddate.day)
+			ChartName = ChartName.strftime(str(ChartName.day) + "/%m/%Y")
+			ChartName = FullName + " " + stat + " YTD as at " + ChartName # Make sure there is no zero padding on the day
+			# Check for a duplicate chart name...
+			NumDuplicates = 0
+			TempName = ChartName
+			while self.Graphs.Chart_Exists(TempName):
+				TempName = ChartName
+				NumDuplicates += 1
+				TempName += " (" + str(NumDuplicates) + ")"
+			ChartName = TempName
+
+			self.Graphs.Create_Chart(ChartName, self.Generate_Date_Range(sheetname_suffix),
+					sheetname=self.CalculationSheet + " " + sheetname_suffix)
 			# Add the indvidual series to the chart
 			i = self.IndexHeadings.index(stat) * (len(self.DataHeadings) * (len(self.IndexHeadings) - 1)) # Add a sub-offset
 			for col in range(i + ColOffset, i + ColOffset + len(self.DataHeadings)):
-				self.Graphs.Add_Series(ChartName, self.Generate_Range(FiscalYear, col), serieslabels=True)
+				self.Graphs.Add_Series(ChartName, self.Generate_Range(sheetname_suffix, col), serieslabels=True)
 			# Apply the templated style, reapply attributes like ylabel
 			self.Graphs.Apply_Template(ChartName, chartpath,
 					ylabel=ylables[self.IndexHeadings.index(stat)])
 			# Apply a fix to the final dates on the graph
-			if graphenddate:
-				self._Correct_Graph_Axis(ChartName, graphenddate)
+			self._Correct_Graph_Axis(ChartName, graphenddate)
 			# Make the chart bigger
 			self.Graphs.Set_Dimentions(ChartName, self.ChartDimentions.x, self.ChartDimentions.y)
 			# Stack charts from the same network vetically
@@ -353,7 +365,7 @@ class ORSSheets(ORSPlots):
 	def __init__(self, xlInstance):
 		self.Sheet = Sheet(xlInstance)
 
-	def YTD_Table(self, *params):
+	def YTD_Sheet(self, *params):
 		"""Use a template table to represent the results.
 		Create a YTD results table for a given date (datetime object)."""
 		# The sheet with the (year) date may not have been created, so we can't rely on reading data from it
@@ -370,23 +382,33 @@ class ORSSheets(ORSPlots):
 		for p in params:
 			out = self.Merge_Dictionaries(out, p)
 
-		template = Template(self.Sheet, r"C:\Users\sdo\Documents\Research and Learning\Git Repos\SAIDI-SAIFI-Calculator\Data\Templates.xlsx")
+		template = Template(r"C:\Users\sdo\Documents\Research and Learning\Git Repos\SAIDI-SAIFI-Calculator\Data\Templates.xlsx")
 		template.Place_Template("Rob", self.Sheet._getCell(self.OutputFileName, 1 ,1))
 		template.Set_Values(out)
 		template.Auto_Fit() # Handles the closing of the template file
 
-	def YTD_Book(self, *params):
+	def YTD_Book(self, filename, *params):
 		"""Create a new workbook with PNL Commercial Summary table"""
 		params = iter(params)
 		out = params.next()
 		for p in params:
 			out = self.Merge_Dictionaries(out, p)
-
 		
-		template = Template(Sheet(xlInstance), r"C:\Users\sdo\Documents\Research and Learning\Git Repos\SAIDI-SAIFI-Calculator\Data\Templates.xlsx")
-		template.Place_Template("Rob", self.Sheet._getCell(self.OutputFileName, 1 ,1))
+		# Open the new file in the same instance for speed
+		self.remove_file(filename)
+		# Don't try opeing in exsting instance if the file does not exist, you get a com_error
+		self.OutputFileHandle = Excel(BookVisible=0, Visible=1, filename=filename) # newinstance=1
+		xlSheetSrc = Sheet(self.OutputFileHandle)
+		xlSheetSrc.renameSheet(self.OutputFileName)
+
+		template = Template(r"C:\Users\sdo\Documents\Research and Learning\Git Repos\SAIDI-SAIFI-Calculator\Data\Templates.xlsx")
+		template.Place_Template("Rob", xlSheetSrc._getCell(self.OutputFileName, 1 ,1))
 		template.Set_Values(out)
 		template.Auto_Fit() # Handles the closing of the template file
+
+		self.OutputFileHandle.save(filename)
+		self.OutputFileHandle.closeWorkbook()
+		#self.OutputFileHandle.closeApplication()
 
 	def Rename_Network(self, networkname):
 		name = ""
@@ -404,6 +426,23 @@ class ORSSheets(ORSPlots):
 		cpy = x2.copy()
 		cpy.update(x1)
 		return cpy
+
+	def _rm_file(self, filename):
+		# Remove any existing file in the same directory
+		FilePath = self.remove_file(filename)
+		if not os.path.exists(os.path.dirname(FilePath)):
+			try:
+				os.makedirs(os.path.dirname(FilePath))
+			except OSError as exc: # Guard against race condition
+				if exc.errno != errno.EEXIST:
+					raise
+		return FilePath
+
+	def remove_file(self, filename):
+		try:
+			os.remove(filename)
+		except:
+			pass
 
 # Coupling with the ors calculator
 class ORSOutput(ORSSheets):
@@ -517,11 +556,26 @@ class ORSOutput(ORSSheets):
 		self.Sheet.setRange("Summary", maxrow + RowOffset+1, 1, Table)
 
 	def Generate_Values(self, enddate, startdate=None):
+		"""
+		Generate dictionary key value pairs for "Rob's" template - suitable for commercial team.
+
+		@param enddate: Date to stop counting SAIDI and SAIFI for the YTD figures.
+		@param startdate: Defaults to the 1/4/<1 year less than start>. Date to start counting SAIDI and SAIFI for YTD figures.
+		@return: A dictionary of the keyword spesfic to the ORS instance currently being handled
+		This functoin will work with date ranges larger than 1 year, but the CC_SAIDI_YTD/CC_SAIFI_YTD interpolations will
+		be meainingless as these are intended to be scaled over 1 whole year starting on 1/4/n and ending on 31/3/n+1.
+		"""
 		if not startdate:
-			year = self.ORS._get_fiscal_year(enddate) - 1 # Function returns the year that the the 31st of march occurs on
+			year = self.ORS._get_fiscal_year(enddate) - 1 # Function returns the fiscal year (int) for the given date
 			startdate = datetime.datetime(year, 4, 1)
 		else:
 			year = self.ORS._get_fiscal_year(startdate) - 1
+
+		# Some checks... any future dates will be redfined as the present date
+		assert startdate < enddate, "The end date is set before the startdate"
+		now = datetime.datetime.now()
+		if now < enddate:
+			enddate = datetime.datetime(now.year, now.month, now.day)
 
 		Dates = self.Generate_Dates(startdate, enddate)
 		Dates = [Date[0] for Date in Dates]
@@ -546,12 +600,10 @@ class ORSOutput(ORSSheets):
 		# Com Com Interpolations (could use np.linspace)
 		SAIDI_TARGET, SAIFI_TARGET = self.ORS._get_CC_stats("TARGET")
 		num_days = (datetime.datetime(year+1, 3, 31) - datetime.datetime(year, 3, 31)).days
-		x_days = (enddate - datetime.datetime(year, 4, 1)).days
+		x_days = (enddate - startdate).days
 		SAIDI_M = SAIDI_TARGET/num_days
 		SAIFI_M = SAIFI_TARGET/num_days
 		params[name+"CC_SAIDI_YTD"] = SAIDI_M * (1 + x_days)
 		params[name+"CC_SAIFI_YTD"] = SAIFI_M * (1 + x_days)
 
-		for key, val in params.iteritems():
-			print key, "\t", val
 		return params

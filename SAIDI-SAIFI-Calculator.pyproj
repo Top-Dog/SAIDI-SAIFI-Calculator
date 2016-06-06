@@ -26,6 +26,9 @@
   <ItemGroup>
     <Compile Include="Data\Restore.py" />
     <Compile Include="Data\SAIDI SAIFI Calculator.py" />
+    <Compile Include="Data\Update ICP Count.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="SAIDISAIFI\Calculator15.py" />
     <Compile Include="SAIDISAIFI\CalculatorAux.py" />
     <Compile Include="SAIDISAIFI\Constants.py" />
