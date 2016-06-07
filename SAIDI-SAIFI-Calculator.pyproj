@@ -1,0 +1,60 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{00860504-753f-4855-9a8a-37481c739bb0}</ProjectGuid>
+    <ProjectHome />
+    <StartupFile>setup.py</StartupFile>
+    <SearchPath />
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <ProjectTypeGuids>{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <InterpreterId>{2af0f10d-7135-4994-9156-5d01c9c11b7e}</InterpreterId>
+    <InterpreterVersion>2.7</InterpreterVersion>
+    <CommandLineArguments>develop</CommandLineArguments>
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
+    <IsWindowsApplication>False</IsWindowsApplication>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
+  <PropertyGroup>
+    <VisualStudioVersion Condition=" '$(VisualStudioVersion)' == '' ">10.0</VisualStudioVersion>
+    <PtvsTargetsFile>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets</PtvsTargetsFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Data\Restore.py" />
+    <Compile Include="Data\SAIDI SAIFI Calculator.py" />
+    <Compile Include="Data\Update ICP Count.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SAIDISAIFI\Calculator15.py" />
+    <Compile Include="SAIDISAIFI\CalculatorAux.py" />
+    <Compile Include="SAIDISAIFI\Constants.py" />
+    <Compile Include="SAIDISAIFI\Output\Output.py" />
+    <Compile Include="SAIDISAIFI\Output\__init__.py" />
+    <Compile Include="SAIDISAIFI\Parser\Parser.py" />
+    <Compile Include="SAIDISAIFI\Parser\__init__.py" />
+    <Compile Include="SAIDISAIFI\__init__.py" />
+    <Compile Include="setup.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="SAIDI_SAIFI_ORS_.egg-info\dependency_links.txt" />
+    <Content Include="SAIDI_SAIFI_ORS_.egg-info\requires.txt" />
+    <Content Include="SAIDI_SAIFI_ORS_.egg-info\SOURCES.txt" />
+    <Content Include="SAIDI_SAIFI_ORS_.egg-info\top_level.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Data" />
+    <Folder Include="SAIDISAIFI" />
+    <Folder Include="SAIDISAIFI\Output" />
+    <Folder Include="SAIDISAIFI\Parser" />
+    <Folder Include="SAIDI_SAIFI_ORS_.egg-info" />
+  </ItemGroup>
+  <ItemGroup>
+    <InterpreterReference Include="{2af0f10d-7135-4994-9156-5d01c9c11b7e}\2.7" />
+  </ItemGroup>
+  <Import Project="$(PtvsTargetsFile)" Condition="Exists($(PtvsTargetsFile))" />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.Common.targets" Condition="!Exists($(PtvsTargetsFile))" />
+</Project>

@@ -14,7 +14,7 @@ class ORSCalculator(object):
 	"""Calculator for the 2015 - 2020 period. After this period updates from the new determination
 	will need to be applied"""
 	def __init__(self, avrgCustomerNum, networkname,
-				 startDate=None, endDate=None):
+				 startDate=None, endDate=None, **kwargs):
 		self.FeederCol = 0
 		self.ORSNumCol = 1
 		self.LinkedORSCol = 2
@@ -66,8 +66,8 @@ class ORSCalculator(object):
 			pass
 			
 		# Initialise some class variables
-		self.boundarySAIDIValue = 0
-		self.boundarySAIFIValue = 0
+		self.boundarySAIDIValue = kwargs.get("boundarySAIDIValue", None)
+		self.boundarySAIFIValue = kwargs.get("boundarySAIFIValue", None)
 		
 		self.avrgCustomerNum = avrgCustomerNum
 
@@ -106,8 +106,11 @@ class ORSCalculator(object):
 			if self._get_fiscal_year(date) in self.BoundryCalcPeriod:
 				dic[date] = self.GroupedUnplannedFaults.get(date)
 		
-		self.boundarySAIDIValue = self.nth_largest(23, dic, 0) # Boundary SAIDI
-		self.boundarySAIFIValue = self.nth_largest(23, dic, 1) # Boundary SAIFI
+		# Only update the boundary values if they're not set
+		if self.boundarySAIDIValue is None:
+			self.boundarySAIDIValue = self.nth_largest(23, dic, 0) # Boundary SAIDI
+		if self.boundarySAIFIValue is None:
+			self.boundarySAIFIValue = self.nth_largest(23, dic, 1) # Boundary SAIFI
 	
 		return self.boundarySAIDIValue, self.boundarySAIFIValue
 		
@@ -158,7 +161,7 @@ class ORSCalculator(object):
 			# Get the stats for a new record in the ORS
 			Date, SAIDI, SAIFI = self.get_fault(record, FaultType)
 			ICPcount = record[self.UniqueICPCol]
-			Feeder = record[self.FeederCol] # TODO: fix this line, make sure that empty string or NONE is handeled
+			Feeder = record[self.FeederCol]
 			if type(ICPcount) is not int:
 				try:
 					ICPcount = float(record[self.UniqueICPCol].replace(',', ''))
@@ -178,9 +181,9 @@ class ORSCalculator(object):
 					IndividualFaults[record[self.LinkedORSCol]] = [Date0, SAIDI0 + SAIDI, SAIFI0 + SAIFI, ICPcount0 + ICPcount, Feeder0]
 			else:
 				if SAIDI != 0 and SAIFI != 0:
-					IndividualFaults[record[self.ORSNumCol]] = [Date, SAIDI, SAIFI, ICPcount, Feeder0]
+					IndividualFaults[record[self.ORSNumCol]] = [Date, SAIDI, SAIFI, ICPcount, Feeder]
 	
-	def _group_same_day(self, dic, sortedDic):
+	def _group_same_dayOLD(self, dic, sortedDic):
 		# sortedDic: key = date, Values = [SAIDI, SAIFI]
 		'''Look through each unique Linked ORS number dictionary and group same dates (days) together'''
 		#currentDate = self.startDate
@@ -203,6 +206,23 @@ class ORSCalculator(object):
 							print "String to float cast failed. No valid data for: ", currentDate
 							print dic.get(faultkey)
 			currentDate += self.deltaDay
+
+	def _group_same_day(self, dic, sortedDic):
+		# sortedDic: key = date, Values = [SAIDI, SAIFI, NumberOfOutages]
+		'''Look through each unique Linked ORS number dictionary and group same dates (days) together'''
+		for LinkedORSNum, Buff in dic.iteritems():
+			if Buff[0] >= min(self.CCStartDate, self.startDate) and Buff[0] <= max(self.CCEndDate, self.endDate): # The DB query already enforces a date criteria, so this line is probably not needed
+				GroupedDays = sortedDic.get(Buff[0], [0, 0, 0])
+				if self.Count3OrLessICPs or Buff[0] >= self.threeICPStartDate:
+					sortedDic[Buff[0]] = [GroupedDays[0] + Buff[1], GroupedDays[1] + Buff[2], GroupedDays[2] + 1]
+				else:
+					try:
+						if Buff[3] > 3.0 and Buff[0] < self.threeICPStartDate:
+							# Don't count faults that defined by linked ID affect less than or equal to 3 ICPs
+							sortedDic[Buff[0]] = [GroupedDays[0] + Buff[1], GroupedDays[1] + Buff[2], GroupedDays[2] + 1]                     
+					except:
+						print "String to float cast failed. No valid data for: ", Buff[0]
+						print Buff
 
 	def _group_same_feeder(self, dic, sortedDic, startdate, enddate):
 		"""Group outages by day and by feeder, so the sorted dictinary will contain 
@@ -232,7 +252,7 @@ class ORSCalculator(object):
 		SAIFIp = 0
 		SAIDIup = 0 # unplanned
 		SAIFIup = 0
-		DefaultValues = [0, 0]
+		DefaultValues = [0, 0, 0]
 
 		if faultType == "planned" or faultType == "all":
 			dic = self.GroupedPlannedFaults
@@ -259,6 +279,22 @@ class ORSCalculator(object):
 				#    break
 				
 		return SAIDIp+SAIDIup, SAIFIp+SAIFIup
+
+	def get_capped_days(self, day, end):
+		"""Return a list days that unplanned SAIDI xor SAIFI exceedded UBVs"""
+		UBVSAIDI = []
+		UBVSAIFI = []
+		while day <= end:
+			SAIDI1, SAIFI1 = self._get_indicies(day, "unplanned", applyBoundary=False)
+			SAIDI2, SAIFI2 = self._get_indicies(day, "unplanned", applyBoundary=True)
+			outage_numbers = self._get_ubv_outages(day)
+			if SAIDI1 != SAIDI2:
+				UBVSAIDI.append([day.date(), SAIDI1, SAIDI2, str(outage_numbers)])
+			if SAIFI1 != SAIFI2:
+				UBVSAIFI.append([day.date(), SAIFI1, SAIFI2, str(outage_numbers)])
+			day += self.deltaDay
+		return UBVSAIDI, UBVSAIFI
+		
 					
 	def get_fault(self, record, faultType):
 		"""This method will only count PNL related outages, and discard all others -- this is not quite working yet"""
@@ -440,6 +476,10 @@ class ORSCalculator(object):
 		self.generate_fault_dict('all', self.AllFaults, self.GroupedAllFaults)
 		assert len(self.AllFaults) != 0, "No faults found! The supplied network name is proably incorrect."
 		self._set_boundary_values()
+		# OJV is a special case, deal to it here
+		#if self.networknames[0] == "OTPO":
+		#	self.boundarySAIDIValue = 13.2414436340332
+		#	self.boundarySAIFIValue = 0.176474571228027
 		
 		# A trivial check to make sure that all faults are either planned or unplanned (class B or C type outages)
 		# and placed into the right dictionaries
@@ -537,15 +577,19 @@ class ORSCalculator(object):
 		if self.ABS_Diff(1e-2, SAIDIval, CCSAIDIVal):
 			SAIDIi = SAIDIval
 		else:
-			print "WARNING! The SAIDI (%s) values calculated differ from the CC values." % arg
-			#SAIDIi = CCSAIDIVal
-			SAIDIi = SAIDIval
+			print "WARNING! %s Diff(SAIDI (%s)) > tolerance" % (self.networknames, arg)
+			if "OTPO" in self.networknames:
+				SAIDIi = CCSAIDIVal
+			else:
+				SAIDIi = SAIDIval
 		if self.ABS_Diff(1e-2, SAIFIval, CCSAIFIVal):
 			SAIFIi = SAIFIval
 		else:
-			print "WARNING! The SAIFI (%s) values calculated differ from the CC values." % arg
-			#SAIFIi = CCSAIFIVal
-			SAIFIi = SAIFIval
+			print "WARNING! %s Diff(SAIFI (%s)) > tolerance" % (self.networknames, arg)
+			if "OTPO" in self.networknames:
+				SAIFIi = CCSAIFIVal
+			else:
+				SAIFIi = SAIFIval
 		return SAIDIi, SAIFIi
 	
 	def ABS_Diff(self, tolerance, *args):
@@ -576,7 +620,7 @@ class ORSCalculator(object):
 		SAIDItot, SAIFItot = 0, 0
 		# Group all feeders with the same name
 		for Date, Feeders in Date_Grouped_Outages.iteritems():
-			SAIDIDay, SAIFIDay = self.GroupedUnplannedFaults.get(Date, [0, 0]) # Return 0 for records we can't find (3 or less ICPs)
+			SAIDIDay, SAIFIDay, FaultsCount = self.GroupedUnplannedFaults.get(Date, [0, 0, 0]) # Return 0 for records we can't find (3 or less ICPs)
 			SAIDItot += SAIDIDay
 			SAIFItot += SAIFIDay
 			for Feeder, Stats in Feeders.iteritems():
@@ -591,9 +635,51 @@ class ORSCalculator(object):
 
 		with open(FilePath, "a") as results_file:
 			results_file.write(tabulate(Table, Headings,  tablefmt="orgtbl", floatfmt=".5f", 
+				numalign="right"))
+
+	def _get_ubv_outages(self, date):
+		"""Get all the unplanned outages that occur on the date of a UBV outage"""
+		orsnums = []
+		for LinkedORSNum, Dataset in self.UnplannedFaults.iteritems(): # key = linked ORS, values = [date, SAIDI, SAIFI, unique ICP count. Feeder]
+			if Dataset[0] == date:
+				orsnums.append(LinkedORSNum)
+		return orsnums
+
+	def _rm_file(self, filename):
+		# Remove any existing file in the same directory
+		FilePath = self.remove_file(filename)
+		if not os.path.exists(os.path.dirname(FilePath)):
+			try:
+				os.makedirs(os.path.dirname(FilePath))
+			except OSError as exc: # Guard against race condition
+				if exc.errno != errno.EEXIST:
+					raise
+		return FilePath
+	
+	def _table(self, filename, headings, table, newlines=0):
+		# Create a new file
+		with open(filename, "a") as results_file:
+			results_file.write(tabulate(table, headings,  tablefmt="orgtbl", floatfmt=".5f", 
 				numalign="right")) 
+			for i in range(newlines+1):
+				results_file.write("\n")
+
+	def Capped_Outages_Table(self, filename, startdate, enddate):
+		# Remove any existing file in the same directory
+		filename = self._rm_file(filename)
+
+		SAIDIDays, SAIFIDays = self.get_capped_days(startdate, enddate)
+
+		# Build the SAIDI table
+		Headings = ["Date", "Pre-Normalised (SAIDI)", "Normalised (SAIDI)", "ORS Number(s)"]
+		self._table(filename, Headings, SAIDIDays, 2)
+
+		# Build the SAIFI table
+		Headings = ["Date", "Pre-Normalised (SAIFI)", "Normalised (SAIFI)", "ORS Number(s)"]
+		self._table(filename, Headings, SAIFIDays)
 
 	def display_stats(self, resolution, fileName):
+		# Very slow method.. needs some tlc
 		"""Method that creates tables for displaying data
 		Replacement method for annual_stats"""
 		self.table = []
@@ -602,13 +688,7 @@ class ORSCalculator(object):
 				   "Linked ORS #", "|", 
 				   "Planned SAIDI", "Unplanned SAIDI", "Total SAIDI", "|", 
 				   "Planned SAIFI", "Unplanned SAIFI", "Total SAIFI"]
-		FilePath = self.remove_file(fileName)
-		if not os.path.exists(os.path.dirname(FilePath)):
-			try:
-				os.makedirs(os.path.dirname(FilePath))
-			except OSError as exc: # Guard against race condition
-				if exc.errno != errno.EEXIST:
-					raise
+		FilePath = self._rm_file(fileName)
 		
 		PeriodEndings = self.period_endings(resolution)
 		# Totals for the period resolution (year, month...)
@@ -627,28 +707,42 @@ class ORSCalculator(object):
 			Total_UP_SAIDI_Period += unplannedSAIDI
 			Total_P_SAIFI_Period += plannedSAIFI
 			Total_UP_SAIFI_Period += unplannedSAIFI
+			NumCustomers = self._get_total_customers(currentDate)
 			
 			if resolution == "outage":                
 				# Dictionary values: [Date0, SAIDI0, SAIFI0, ICPcount0]
 				# Planned events first
-				for LinkedORSNum in self.PlannedFaults:
-					Record = self.PlannedFaults.get(LinkedORSNum)
+				#for LinkedORSNum in self.PlannedFaults:
+				#	Record = self.PlannedFaults.get(LinkedORSNum)
+				#	if Record[0] == currentDate:
+				#		self._add_table_record(currentDate, self._get_total_customers(currentDate),
+				#		   LinkedORSNum,
+				#		   Record[1], 0,
+				#		   Record[2], 0)
+				for LinkedORSNum, Record in self.PlannedFaults.iteritems():
 					if Record[0] == currentDate:
-						self._add_table_record(currentDate, self._get_total_customers(currentDate),
+						self._add_table_record(currentDate, NumCustomers,
 						   LinkedORSNum,
 						   Record[1], 0,
 						   Record[2], 0)
+
 				# Unplanned events second
-				for LinkedORSNum in self.UnplannedFaults:
-					Record = self.UnplannedFaults.get(LinkedORSNum)
+				#for LinkedORSNum in self.UnplannedFaults:
+				#	Record = self.UnplannedFaults.get(LinkedORSNum)
+				#	if Record[0] == currentDate:
+				#		self._add_table_record(currentDate, self._get_total_customers(currentDate),
+				#		   LinkedORSNum,
+				#		   0, Record[1],
+				#		   0, Record[2])
+				for LinkedORSNum, Record in self.UnplannedFaults.iteritems():
 					if Record[0] == currentDate:
-						self._add_table_record(currentDate, self._get_total_customers(currentDate),
+						self._add_table_record(currentDate, NumCustomers,
 						   LinkedORSNum,
 						   0, Record[1],
 						   0, Record[2])
 						
 			elif currentDate in PeriodEndings:
-				self._add_table_record(currentDate, self._get_total_customers(currentDate),
+				self._add_table_record(currentDate, NumCustomers,
 					   "N/A",
 					   Total_P_SAIDI_Period, Total_UP_SAIDI_Period,
 					   Total_P_SAIFI_Period, Total_UP_SAIFI_Period)
@@ -687,7 +781,7 @@ class ORSCalculator(object):
 												pSAIFI, upSAIFI):
 		"""Adds a row to the table"""
 		# E.g. formatting floats: "{0:.5f}".format(monthlySAIDI)
-		monthAbbr = {month: abbr for month,abbr in enumerate(calendar.month_abbr)}
+		monthAbbr = {month: abbr for month, abbr in enumerate(calendar.month_abbr)}
 		self.table.append([self._date_to_str(date) + ' (' + monthAbbr.get(date.month) + ')', "|", str(round(NumICPs, 1)),
 						   "|", LinkedORSNo,
 						   "|", pSAIDI, upSAIDI, pSAIDI+upSAIDI, 

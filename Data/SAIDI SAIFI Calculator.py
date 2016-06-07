@@ -52,7 +52,12 @@ def worker_networks(startdate, enddate, threadID, NetworkInQueue, NetworkOutQueu
 		for name in names:
 			ICPs.append(ICPNums.get(name))
 
-		Network = ORSCalculator(sum_like_keys(ICPs), NetworkName, startdate, enddate)
+		# Deal with OJV's boundary values differently
+		if "OTPO" in NetworkName:
+			Network = ORSCalculator(sum_like_keys(ICPs), NetworkName, startdate, enddate, boundarySAIDIValue=13.2414436340332, boundarySAIFIValue=0.176474571228027)
+		else:
+			Network = ORSCalculator(sum_like_keys(ICPs), NetworkName, startdate, enddate)
+
 		Network.generate_stats()
 		Network.display_stats("outage", "Individual Outages.txt")
 		Network.display_stats("month", "Results Table - Monthly.txt")
@@ -63,15 +68,20 @@ def worker_networks(startdate, enddate, threadID, NetworkInQueue, NetworkOutQueu
 		DBG = SAIDISAIFI.CalculatorAux.ORSDebug(Network)
 		DBG.create_csv()
 
-		# Distrobution Automation stuff
-		Network.DA_Table("DA Table.txt", datetime.datetime(2014,4,1), datetime.datetime(2016,4,1))
+		# Distrobution Automation calculation over the display period (same interval as the output tables)
+		_Start_Time = datetime.datetime(2015, 4, 1)
+		_End_Time = datetime.datetime(2016, 3, 31)
+		Network.DA_Table("DA Table.txt", _Start_Time, _End_Time)
+		Network.Capped_Outages_Table("UBV Outages.txt", _Start_Time, _End_Time)
 
 		# Put the completed network into an output queue
 		NetworkOutQueue.put(Network)
 
 
-if __name__ == "__main__":    
+if __name__ == "__main__":
+	# Start clock for timing the app's execution time
 	starttime = datetime.datetime.now()
+
 	# Get the currently active MS Excel Instace
 	try:
 		xl = Excel.Launch.Excel(visible=True, runninginstance=True)
@@ -80,13 +90,19 @@ if __name__ == "__main__":
 		print "You need to have the Excel sheet open and set as the active window"
 		time.sleep(5)
 		sys.exit()
+	xl.xlApp.ScreenUpdating = False 
 
+	# Handles reading all the data from the UI (Excel)
 	p = Parser.ParseORS(xl)
-	# All ICP counts are averages as of the 31 March i.e. fincial year ending
-	ICPNums = p.Read_Num_Cust()
-	
-	startdate, enddate = p.Read_Dates_To_Publish()
+	ICPNums = p.Read_Num_Cust() # The average number of unique ICPs to be used in the calcs
+	startdate, enddate = p.Read_Dates_To_Publish() # Determine the minimum date range to run the calculator
+	Last_Pub_Date = p.Read_Last_Date() # This will be used in "Rob's" table used for commercial
+	user_last_date = "User Defined" # The name to be appened to "Calculation" for custom date range sheet (uses Last_Pub_Date)
 
+	# Setup the output handlers
+	xlDocument = Output.ORSSheets(xl)
+
+	# Unique names for each (group of) network(s)
 	Networks = ["OTPO, LLNW", "ELIN", "TPCO"]
 	NetworkInQueue = multiprocessing.Queue(maxsize=len(Networks))
 	NetworkOutQueue = multiprocessing.Queue(maxsize=len(Networks))
@@ -103,11 +119,17 @@ if __name__ == "__main__":
 	
 	# Work with Excel COM to produce graphs for one network at a time (avoid COM threading/asyncronous behaviour)
 	num_networks = 0
+	ReportValues = {}
 	while num_networks < len(Networks):
+		# Get a network that has completed its calculations
 		Network = NetworkOutQueue.get(True) # Blocks indefinetly if nothing is in the queue
 		
+		# Create a new instance of the plot and table generator (for Excel output)
 		xlPlotter = Output.ORSPlots(Network, xl)
 		xlTables = Output.ORSOutput(Network, xl)
+
+		# Populate a dictionary that contains the keys for populating pre-built Excel template sheets
+		ReportValues = xlDocument.Merge_Dictionaries(ReportValues, xlTables.Generate_Values(Last_Pub_Date))
 		
 		# Only do this once, for the very first network being run - setup the excel book
 		if num_networks == 0:
@@ -118,12 +140,17 @@ if __name__ == "__main__":
 				xlPlotter.Create_Sheet(year)
 				# Populate Dates
 				xlPlotter.Fill_Dates(yrstart, year)
+				# Create the summary tables in Excel
+				xlTables.Create_Summary_Table()
+			# Extra Graph
+			xlPlotter.Create_Sheet(user_last_date)
+			xlPlotter.Fill_Dates(datetime.datetime(xlPlotter._get_fiscal_year(Last_Pub_Date), 4, 1), user_last_date)
 		
 		# Update the ComCom comparison table in excel
 		xlTables.Populate_Reliability_Stats()
 		
 		# Create a new progress bar
-		pb = ProgressBar(len(p.StartDates), "SAIDI/SAIFI graph(s)")
+		pb = ProgressBar(len(p.StartDates)+1, "SAIDI/SAIFI graph(s)")
 		pb_thread = threading.Thread(target=update_prog_bar, args=(pb,))
 		pb_thread.start()
 		
@@ -131,10 +158,15 @@ if __name__ == "__main__":
 		for yrstart in p.StartDates:       
 			year = str(yrstart.year)
 			xlPlotter.Populate_Fixed_Stats(year) # Com Com table values scaled linearly
-			xlPlotter.Populate_Daily_Stats(year) # Daily real world SAIDI/SAIDI
-			xlTables.Summary_Table(year)
-			xlPlotter.Create_Graphs(year)
+			xlPlotter.Populate_Daily_Stats(datetime.datetime(yrstart.year+1, 3, 31), year) # Daily real world SAIDI/SAIDI
+			#xlTables.Summary_Table(year)
+			xlPlotter.Create_Graphs(datetime.datetime(yrstart.year+1, 3, 31), year)
 			pb.update_paced()
+		# Extra Graph
+		xlPlotter.Populate_Fixed_Stats(user_last_date)
+		xlPlotter.Populate_Daily_Stats(Last_Pub_Date, user_last_date)
+		xlPlotter.Create_Graphs(Last_Pub_Date, user_last_date)
+		pb.update_paced()
 		
 		# Wait for the progress bar to complete to 100%
 		pb_thread.join()
@@ -143,7 +175,13 @@ if __name__ == "__main__":
 	# Wait for all workers to finish
 	for process in processes:
 		process.join()
+
+	# Populate Excel template sheets - Any future dates will be set to todays date
+	xlDocument.YTD_Sheet(ReportValues)
+	xlDocument.YTD_Book(SAIDISAIFI.Constants.FILE_DIRS.get("GENERAL")+r"\Robs test.xlsx", ReportValues)
 	
-	# Let the user know that we are done
+	xl.xlApp.ScreenUpdating = True 
+
+	# Let the user know that we are done - show the execution time
 	print "Task completed in %d seconds" % (datetime.datetime.now() - starttime).seconds
 	raw_input("Done. Press the return key to exit.")
