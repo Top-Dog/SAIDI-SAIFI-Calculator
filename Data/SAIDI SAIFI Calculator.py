@@ -90,6 +90,7 @@ if __name__ == "__main__":
 		print "You need to have the Excel sheet open and set as the active window"
 		time.sleep(5)
 		sys.exit()
+	xl.xlApp.ScreenUpdating = False 
 
 	# Handles reading all the data from the UI (Excel)
 	p = Parser.ParseORS(xl)
@@ -179,6 +180,8 @@ if __name__ == "__main__":
 	xlDocument.YTD_Sheet(ReportValues)
 	xlDocument.YTD_Book(SAIDISAIFI.Constants.FILE_DIRS.get("GENERAL")+r"\Robs test.xlsx", ReportValues)
 	
+	xl.xlApp.ScreenUpdating = True 
+
 	# Let the user know that we are done - show the execution time
 	print "Task completed in %d seconds" % (datetime.datetime.now() - starttime).seconds
 	raw_input("Done. Press the return key to exit.")
