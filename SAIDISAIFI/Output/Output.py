@@ -145,6 +145,7 @@ class ORSPlots(object): # ORSCalculator
 		results = self.Sheet.search(shtRange(self.CalculationSheet+suffix, None, 4, 1, maxrow, 1), 
 						searchterm)
 		if len(results) == 1:
+			# If there is only one date, we hav't corrected slope yet so do it now
 			self.Sheet.setCell(self.CalculationSheet+suffix, results[0].Row+1, 1, results[0].Value)
 
 	def _Correct_Graph_Axis(self, ChartName, enddate=datetime.datetime.now()):
@@ -268,7 +269,7 @@ class ORSPlots(object): # ORSCalculator
 			
 		self.Sheet.setRange(sheetname, 4, ColOffset, SAIDITable)
 		self.Sheet.setRange(sheetname, 4, ColOffset+len(self.DataHeadings), SAIFITable)
-		self._Correct_Graph_Slope(FiscalYear) # Makes the area plot look a bit better, but mutates the source data, so must be run last
+		self._Correct_Graph_Slope(FiscalYear, StopTime) # Makes the area plot look a bit better, but mutates the source data, so must be run last
 		self.Sheet.set_calculation_mode("automatic")
 
 	def _get_fiscal_year(self, enddate):
@@ -576,6 +577,7 @@ class ORSOutput(ORSSheets):
 		now = datetime.datetime.now()
 		if now < enddate:
 			enddate = datetime.datetime(now.year, now.month, now.day)
+			year = self.ORS._get_fiscal_year(enddate) - 1
 
 		Dates = self.Generate_Dates(startdate, enddate)
 		Dates = [Date[0] for Date in Dates]
@@ -590,6 +592,7 @@ class ORSOutput(ORSSheets):
 		params[name+"DATE_END"] = enddate
 		params[name+"CUST_NUM"] = self.ORS._get_total_customers(enddate)
 		# Sum the columns in this matrix
+		#print "np.sum(SAIDI_, 0)", np.sum(SAIDI_, 0)
 		params[name+"SAIDI_NORMED_OUT"] = np.sum(SAIDI_, 0)[2]
 		params[name+"SAIFI_NORMED_OUT"] = np.sum(SAIFI_, 0)[2]
 		params[name+"SAIDI_UNPLANNED"] = np.sum(SAIDI_, 0)[1]

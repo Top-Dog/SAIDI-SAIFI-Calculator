@@ -96,8 +96,8 @@ if __name__ == "__main__":
 	p = Parser.ParseORS(xl)
 	ICPNums = p.Read_Num_Cust() # The average number of unique ICPs to be used in the calcs
 	startdate, enddate = p.Read_Dates_To_Publish() # Determine the minimum date range to run the calculator
-	Last_Pub_Date = p.Read_Last_Date() # This will be used in "Rob's" table used for commercial
-	user_last_date = "User Defined" # The name to be appened to "Calculation" for custom date range sheet (uses Last_Pub_Date)
+	Last_Pub_Date = min(p.Read_Last_Date(), datetime.datetime.now()) # This will be used in "Rob's" table used for commercial
+	selected_date_sheet = "User Defined" # The name to be appened to "Calculation" for custom date range sheet (uses Last_Pub_Date)
 
 	# Setup the output handlers
 	xlDocument = Output.ORSSheets(xl)
@@ -143,8 +143,8 @@ if __name__ == "__main__":
 				# Create the summary tables in Excel
 				xlTables.Create_Summary_Table()
 			# Extra Graph
-			xlPlotter.Create_Sheet(user_last_date)
-			xlPlotter.Fill_Dates(datetime.datetime(xlPlotter._get_fiscal_year(Last_Pub_Date), 4, 1), user_last_date)
+			xlPlotter.Create_Sheet(selected_date_sheet)
+			xlPlotter.Fill_Dates(datetime.datetime(xlPlotter._get_fiscal_year(Last_Pub_Date), 4, 1), selected_date_sheet)
 		
 		# Update the ComCom comparison table in excel
 		xlTables.Populate_Reliability_Stats()
@@ -163,9 +163,9 @@ if __name__ == "__main__":
 			xlPlotter.Create_Graphs(datetime.datetime(yrstart.year+1, 3, 31), year)
 			pb.update_paced()
 		# Extra Graph
-		xlPlotter.Populate_Fixed_Stats(user_last_date)
-		xlPlotter.Populate_Daily_Stats(Last_Pub_Date, user_last_date)
-		xlPlotter.Create_Graphs(Last_Pub_Date, user_last_date)
+		xlPlotter.Populate_Fixed_Stats(selected_date_sheet)
+		xlPlotter.Populate_Daily_Stats(Last_Pub_Date, selected_date_sheet)
+		xlPlotter.Create_Graphs(Last_Pub_Date, selected_date_sheet)
 		pb.update_paced()
 		
 		# Wait for the progress bar to complete to 100%
