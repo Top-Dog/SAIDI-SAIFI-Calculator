@@ -83,7 +83,11 @@ class ParseORS(object):
 		"""Read (get) the last date field"""
 		o = pos(row=17, col=12)
 		lastdate = self.Sheet.getCell(self.InputSheet, o.row, o.col)
-		return self.Sheet.getDateTime(lastdate)
+		try:
+			return self.Sheet.getDateTime(lastdate)
+		except AttributeError:
+			# The user entered an invalid date 
+			return datetime.datetime.now()
 		 
 	def Restore_Input_Default(self):
 		"""Restore the default state of the table that has all the ICP counts for each network"""
