@@ -27,7 +27,7 @@ def create_user_files():
 	
 	# Copy all the chart template files
 	for file in os.listdir(os.path.join(src_dir, "Data")):
-		if file.endswith(".crtx"):
+		if file.endswith(".crtx") or file == "Templates.xlsx":
 			shutil.copy2(os.path.join(src_dir, "Data", file), os.path.join(dest_dir, "Templates"))
 		elif file.endswith(".py"):
 			shutil.copy2(os.path.join(src_dir, "Data", file), os.path.join(dest_dir, "Scripts"))
