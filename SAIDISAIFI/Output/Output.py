@@ -355,6 +355,17 @@ class ORSPlots(object): # ORSCalculator
 		return "='%s'!%s%d:%s%d" % (sheetname, col, self.DateOrigin.row-1, 
 			col, self.Sheet.getMaxRow(sheetname, self.DateOrigin.col, self.DateOrigin.row))
 
+	def Analyse_Graphs(self):
+		"""Layout and create graphs suitable for comparrison and analysis. So place all the graphs on one sheet."""
+		# Create a new sheet
+		sheetname = "All Graphs"
+		self.Sheet.rmvSheet(removeList=[sheetname])
+		self.Sheet.addSheet(sheetname)
+
+		# Copy
+
+
+
 # No coupling with the ORS calculator
 class ORSSheets(ORSPlots):
 	InputSheet = "Input"
@@ -579,26 +590,33 @@ class ORSOutput(ORSSheets):
 			enddate = datetime.datetime(now.year, now.month, now.day)
 			year = self.ORS._get_fiscal_year(enddate) - 1
 
-		Dates = self.Generate_Dates(startdate, enddate)
-		Dates = [Date[0] for Date in Dates]
-		# Calculate the cumulative sum of SAIDI and SAIFI 
-		# (planned, unplanned, unplanned normed) for the given dates
-		SAIDI_, SAIFI_ = self._Calc_Rows(Dates, self.ORS)
-		netname = self.Rename_Network(self.ORS.networknames[0])
-		#params = [netname + "_" + param for param in params]
-		
+		# Fixed sheet data
 		name = self.Rename_Network(self.NetworkName) + "_"
 		params = {}
 		params[name+"DATE_END"] = enddate
 		params[name+"CUST_NUM"] = self.ORS._get_total_customers(enddate)
-		# Sum the columns in this matrix
-		#print "np.sum(SAIDI_, 0)", np.sum(SAIDI_, 0)
+
+		# Annual data
+		Dates = self.Generate_Dates(startdate, enddate)
+		Dates = [Date[0] for Date in Dates]
+		SAIDI_, SAIFI_ = self._Calc_Rows(Dates, self.ORS) 		# (planned, unplanned, unplanned normed) for the given dates		
 		params[name+"SAIDI_NORMED_OUT"] = np.sum(SAIDI_, 0)[2]
 		params[name+"SAIFI_NORMED_OUT"] = np.sum(SAIFI_, 0)[2]
 		params[name+"SAIDI_UNPLANNED"] = np.sum(SAIDI_, 0)[1]
 		params[name+"SAIFI_UNPLANNED"] = np.sum(SAIFI_, 0)[1]
 		params[name+"SAIDI_PLANNED"] = np.sum(SAIDI_, 0)[0]
 		params[name+"SAIFI_PLANNED"] = np.sum(SAIFI_, 0)[0]
+
+		# Monthly data (present month)
+		Dates = self.Generate_Dates(datetime.datetime(enddate.year, enddate.month, 1), enddate)
+		Dates = [Date[0] for Date in Dates]
+		SAIDI_, SAIFI_ = self._Calc_Rows(Dates, self.ORS)
+		params[name+"SAIDI_MONTH_NORMED_OUT"] = np.sum(SAIDI_, 0)[2]
+		params[name+"SAIFI_MONTH_NORMED_OUT"] = np.sum(SAIFI_, 0)[2]
+		params[name+"SAIDI_MONTH_UNPLANNED"] = np.sum(SAIDI_, 0)[1]
+		params[name+"SAIFI_MONTH_UNPLANNED"] = np.sum(SAIFI_, 0)[1]
+		params[name+"SAIDI_MONTH_PLANNED"] = np.sum(SAIDI_, 0)[0]
+		params[name+"SAIFI_MONTH_PLANNED"] = np.sum(SAIFI_, 0)[0]
 
 		# Com Com Interpolations (could use np.linspace)
 		SAIDI_TARGET, SAIFI_TARGET = self.ORS._get_CC_stats("TARGET")
