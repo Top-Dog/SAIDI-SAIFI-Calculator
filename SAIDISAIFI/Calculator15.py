@@ -280,8 +280,25 @@ class ORSCalculator(object):
 				
 		return SAIDIp+SAIDIup, SAIFIp+SAIFIup
 
+	def _get_num_faults(self, currentDate, faultType):
+		"""Gets the raw data values for a particualr fault type
+		@return: tuple (number of ICPs out by planned, number of ICPs out by unplanned) on a given day
+		"""
+		numfaults = 0
+		# key = linked ORS, values = [date, SAIDI, SAIFI, unique ICP count, Feeder]
+		if faultType == "unplanned" or faultType == "all":
+			for linkedORS, data in self.UnplannedFaults.iteritems():
+				if data[0] == currentDate:
+					numfaults += 1 #data[3]
+		
+		if faultType == "planned" or faultType == "all":
+			for linkedORS, data in self.PlannedFaults.iteritems():
+				if data[0] == currentDate:
+					numfaults += 1 #data[3]
+		return numfaults
+
 	def get_capped_days(self, day, end):
-		"""Return a list days that unplanned SAIDI xor SAIFI exceedded UBVs"""
+		"""Return a list days that unplanned SAIDI or SAIFI exceedded UBVs"""
 		UBVSAIDI = []
 		UBVSAIFI = []
 		while day <= end:

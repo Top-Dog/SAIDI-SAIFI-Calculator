@@ -608,17 +608,25 @@ class ORSOutput(ORSSheets):
 		params[name+"SAIFI_UNPLANNED"] = np.sum(SAIFI_, 0)[1]
 		params[name+"SAIDI_PLANNED"] = np.sum(SAIDI_, 0)[0]
 		params[name+"SAIFI_PLANNED"] = np.sum(SAIFI_, 0)[0]
+		params[name+"RAW_PLANNED"] = np.sum([self.ORS._get_num_faults(date, "planned") for date in Dates])
+		params[name+"RAW_UNPLANNED"] = np.sum([self.ORS._get_num_faults(date, "unplanned") for date in Dates])
+		params[name+"RAW_NUM_MAJOR_EVENTS_SAIDI"] = len(self.ORS.get_capped_days(Dates[0], Dates[-1])[0])
+		params[name+"RAW_NUM_MAJOR_EVENTS_SAIFI"] = len(self.ORS.get_capped_days(Dates[0], Dates[-1])[1])
 
 		# Monthly data (present month)
 		Dates = self.Generate_Dates(datetime.datetime(enddate.year, enddate.month, 1), enddate)
 		Dates = [Date[0] for Date in Dates]
-		SAIDI_, SAIFI_ = self._Calc_Rows(Dates, self.ORS)
+		SAIDI_, SAIFI_ = self._Calc_Rows(Dates, self.ORS)		# (planned, unplanned, unplanned normed) for the given dates	
 		params[name+"SAIDI_MONTH_NORMED_OUT"] = np.sum(SAIDI_, 0)[2]
 		params[name+"SAIFI_MONTH_NORMED_OUT"] = np.sum(SAIFI_, 0)[2]
 		params[name+"SAIDI_MONTH_UNPLANNED"] = np.sum(SAIDI_, 0)[1]
 		params[name+"SAIFI_MONTH_UNPLANNED"] = np.sum(SAIFI_, 0)[1]
 		params[name+"SAIDI_MONTH_PLANNED"] = np.sum(SAIDI_, 0)[0]
 		params[name+"SAIFI_MONTH_PLANNED"] = np.sum(SAIFI_, 0)[0]
+		params[name+"RAW_MONTH_PLANNED"] = np.sum([self.ORS._get_num_faults(date, "planned") for date in Dates])
+		params[name+"RAW_MONTH_UNPLANNED"] = np.sum([self.ORS._get_num_faults(date, "unplanned") for date in Dates])
+		params[name+"RAW_MONTH_NUM_MAJOR_EVENTS_SAIDI"] = len(self.ORS.get_capped_days(Dates[0], Dates[-1])[0])
+		params[name+"RAW_MONTH_NUM_MAJOR_EVENTS_SAIFI"] = len(self.ORS.get_capped_days(Dates[0], Dates[-1])[1])
 
 		# Com Com Interpolations (could use np.linspace)
 		SAIDI_TARGET, SAIFI_TARGET = self.ORS._get_CC_stats("TARGET")
