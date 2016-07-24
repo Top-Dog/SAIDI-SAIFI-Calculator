@@ -39,7 +39,7 @@ if __name__ == "__main__":
 		  version='0.1',
 		  description='A package to assist with SAIDI/SAIFI calculations and data presentation',
 		  long_description=readme(),
-		  url='some github url (update this!)',
+		  url='https://github.com/Top-Dog/SAIDI-SAIFI-Calculator',
 		  author="Sean D. O'Connor",
 		  author_email='sdo51@uclive.ac.nz',
 		  license='MIT',

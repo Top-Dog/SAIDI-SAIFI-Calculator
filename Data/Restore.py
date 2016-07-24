@@ -3,7 +3,7 @@ Created on 15/04/2016
 
 @author: Sean D. O'Connor
 '''
-
+import time
 from SAIDISAIFI import Parser, Output
 from MSOffice import Excel
 
@@ -23,4 +23,5 @@ if __name__ == "__main__":
 	xlPlotter = Output.ORSPlots(None, xl)
 	xlPlotter.Clean_Workbook()
 
-	raw_input("Success! ")
+	print "Success!"
+	time.sleep(5)

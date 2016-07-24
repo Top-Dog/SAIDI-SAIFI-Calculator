@@ -330,7 +330,7 @@ class ORSPlots(object): # ORSCalculator
 				self.Graphs.Add_Series(ChartName, self.Generate_Range(sheetname_suffix, col), serieslabels=True)
 			# Apply the templated style, reapply attributes like ylabel
 			self.Graphs.Apply_Template(ChartName, chartpath,
-					ylabel=ylables[self.IndexHeadings.index(stat)])
+					ylabel=ylables[self.IndexHeadings.index(stat)], ylabelsize=15)
 			# Apply a fix to the final dates on the graph
 			self._Correct_Graph_Axis(ChartName, graphenddate)
 			# Make the chart bigger

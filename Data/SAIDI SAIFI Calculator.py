@@ -69,7 +69,7 @@ def worker_networks(startdate, enddate, threadID, NetworkInQueue, NetworkOutQueu
 		DBG.create_csv()
 
 		# Distrobution Automation calculation over the display period (same interval as the output tables)
-		_Start_Time = datetime.datetime(2015, 4, 1)
+		_Start_Time = datetime.datetime(2011, 4, 1)
 		_End_Time = datetime.datetime(2016, 3, 31)
 		Network.DA_Table("DA Table.txt", _Start_Time, _End_Time)
 		Network.Capped_Outages_Table("UBV Outages.txt", _Start_Time, _End_Time)
@@ -184,4 +184,4 @@ if __name__ == "__main__":
 
 	# Let the user know that we are done - show the execution time
 	print "Task completed in %d seconds" % (datetime.datetime.now() - starttime).seconds
-	raw_input("Done. Press the return key to exit.")
+	time.sleep(8)
