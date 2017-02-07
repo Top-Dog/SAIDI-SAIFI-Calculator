@@ -297,15 +297,15 @@ class ORSPlots(object): # ORSCalculator
 		FullName = ""
 		if network == "ELIN":
 			ColOffset += 0
-			chartpath = os.path.expanduser('~/Documents/SAIDI and SAIFI/Templates/ORSChartEIL.crtx')
+			chartpath = os.path.expanduser('~/Documents/SAIDI and SAIFI/Templates/ORSChartEIL2.crtx')
 			FullName = "Electricty Invercargill"
 		elif network == "OTPO":
 			ColOffset += len(self.DataHeadings) * len(self.IndexHeadings)
-			chartpath = os.path.expanduser('~/Documents/SAIDI and SAIFI/Templates/ORSChartOJV.crtx')
+			chartpath = os.path.expanduser('~/Documents/SAIDI and SAIFI/Templates/ORSChartOJV2.crtx')
 			FullName = "OtagoNet+ESL"
 		elif network == "TPCO":
 			ColOffset += len(self.DataHeadings) * len(self.IndexHeadings) * (len(self.NetworkHeadings) - 1)
-			chartpath = os.path.expanduser('~/Documents/SAIDI and SAIFI/Templates/ORSChartTPC.crtx')
+			chartpath = os.path.expanduser('~/Documents/SAIDI and SAIFI/Templates/ORSChartTPC2.crtx')
 			FullName = "The Power Company"
 		
 		ylables = ["Average Outage Duration (Minutes/ICP)", "Average No. Outages (Interruptions/ICP)"]

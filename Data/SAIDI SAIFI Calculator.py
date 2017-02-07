@@ -69,9 +69,10 @@ def worker_networks(startdate, enddate, threadID, NetworkInQueue, NetworkOutQueu
 		DBG.create_csv()
 
 		# Distrobution Automation calculation over the display period (same interval as the output tables)
-		_Start_Time = datetime.datetime(2011, 4, 1)
-		_End_Time = datetime.datetime(2016, 3, 31)
-		Network.DA_Table("DA Table.txt", _Start_Time, _End_Time)
+		_Start_Time = datetime.datetime(2002, 4, 1)
+		_End_Time = datetime.datetime.now() #datetime.datetime(2016, 3, 31)
+		Network.DA_Table("DA Table.txt", datetime.datetime(2015, 4, 1), datetime.datetime(2016, 3, 31))
+		Network.Outages_Feeder_Year("DA Profiles.txt", datetime.datetime(2002, 4, 1), datetime.datetime(2016, 9, 16))
 		Network.Capped_Outages_Table("UBV Outages.txt", _Start_Time, _End_Time)
 
 		# Put the completed network into an output queue

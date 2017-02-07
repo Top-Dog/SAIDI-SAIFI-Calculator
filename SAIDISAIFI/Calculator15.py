@@ -73,13 +73,13 @@ class ORSCalculator(object):
 
 		# We need to know individual ICPs, so we can exldue outages affecting 3 or less (prior to a a given date)
 		self.AllFaults = {} # key = linked ORS, values = [date, SAIDI, SAIFI, unique ICP count, Feeder]
-		self.GroupedAllFaults = {} # key = date, values = [SAIDI, SAIFI]
+		self.GroupedAllFaults = {} # key = date, values = [SAIDI, SAIFI, NumberOfOutageRecords]
 		
 		self.PlannedFaults = {} # key = linked ORS, values = [date, SAIDI, SAIFI, unique ICP count, Feeder]
-		self.GroupedPlannedFaults = {} # key = date, values = [SAIDI, SAIFI]
+		self.GroupedPlannedFaults = {} # key = date, values = [SAIDI, SAIFI, NumberOfOutageRecords]
 		
-		self.UnplannedFaults = {} # key = linked ORS, values = [date, SAIDI, SAIFI, unique ICP count. Feeder]
-		self.GroupedUnplannedFaults = {} # key = date, values = [SAIDI, SAIFI]
+		self.UnplannedFaults = {} # key = linked ORS, values = [date, SAIDI, SAIFI, unique ICP count, Feeder]
+		self.GroupedUnplannedFaults = {} # key = date, values = [SAIDI, SAIFI, NumberOfOutageRecords]
 		
 		self.table = [] # Table used for tabulating results
 		
@@ -208,7 +208,7 @@ class ORSCalculator(object):
 			currentDate += self.deltaDay
 
 	def _group_same_day(self, dic, sortedDic):
-		# sortedDic: key = date, Values = [SAIDI, SAIFI, NumberOfOutages]
+		# sortedDic: key = date, Values = [SAIDI, SAIFI, NumberOfOutageRecords]
 		'''Look through each unique Linked ORS number dictionary and group same dates (days) together'''
 		for LinkedORSNum, Buff in dic.iteritems():
 			if Buff[0] >= min(self.CCStartDate, self.startDate) and Buff[0] <= max(self.CCEndDate, self.endDate): # The DB query already enforces a date criteria, so this line is probably not needed
@@ -227,17 +227,18 @@ class ORSCalculator(object):
 	def _group_same_feeder(self, dic, sortedDic, startdate, enddate):
 		"""Group outages by day and by feeder, so the sorted dictinary will contain 
 		dates of individual feeder outages per day."""
-		# {date : {"feeder 1" : [SAIDI, SAIFI], "feeder 2" : [SAIDI, SAIFI], ...}}
+		# {date : {"feeder 1" : [SAIDI, SAIFI, ICP count], "feeder 2" : [SAIDI, SAIFI, ICP count], ...}}
 		# These are raw SAIDI/SAIFIs i.e. there are no boundary value cappings applied
 
 		# Loop through the domain [startdate, enddate], so if start and end date re the same you will get one days worth of data back
 		while startdate < (self.deltaDay + enddate):
 			for linkedORSNum in dic:
 				Date, SAIDI, SAIFI, UniqueICPs, Feeder = dic.get(linkedORSNum)
+				# Loop through every linked ORS No. so we don't need to use a "Grouped Unplanned Faults" dictionary.
 				if Date == startdate:
 					Feeders = sortedDic.get(startdate, {})
-					SAIDI0, SAIFI0 = Feeders.get(Feeder, [0, 0])
-					Feeders[Feeder] = [SAIDI0 + SAIDI, SAIFI0 + SAIFI]
+					SAIDI0, SAIFI0, ICPs0 = Feeders.get(Feeder, [0, 0, 0])
+					Feeders[Feeder] = [SAIDI0 + SAIDI, SAIFI0 + SAIFI, ICPs0 + UniqueICPs]
 					sortedDic[startdate] = Feeders
 			startdate += self.deltaDay
 
@@ -553,11 +554,11 @@ class ORSCalculator(object):
 		SAIDI_target = sum(ArraySAIDI)/len(self.BoundryCalcPeriod)
 		SAIFI_target = sum(ArraySAIFI)/len(self.BoundryCalcPeriod)
 		
-		# Collar - sample variance
+		# Collar - sample variance (Delta Degrees of Freedom should be set to 1 to eliminate bias from a sample std. deviation i.e. divide by N-1)
 		SAIDI_collar = SAIDI_target - 365**0.5 * np.std(ArraySAIDI, dtype=np.float64, ddof=1)
 		SAIFI_collar = SAIFI_target - 365**0.5 * np.std(ArraySAIFI, dtype=np.float64, ddof=1)
 		
-		# Limit - sample variance
+		# Limit - sample variance (Delta Degrees of Freedom should be set to 1 to eliminate bias from a sample std. deviation i.e. divide by N-1)
 		SAIDI_limit = SAIDI_target + 365**0.5 * np.std(ArraySAIDI, dtype=np.float64, ddof=1)
 		SAIFI_limit = SAIFI_target + 365**0.5 * np.std(ArraySAIFI, dtype=np.float64, ddof=1)  
 		
@@ -620,13 +621,7 @@ class ORSCalculator(object):
 	def DA_Table(self, fileName, startdate, enddate):
 		"""Create the Distrobution Automation (DA) anaylsis table
 		based on unplanned outages only."""
-		FilePath = self.remove_file(fileName)
-		if not os.path.exists(os.path.dirname(FilePath)):
-			try:
-				os.makedirs(os.path.dirname(FilePath))
-			except OSError as exc: # Guard against race condition
-				if exc.errno != errno.EEXIST:
-					raise
+		FilePath = self._rm_file(fileName)
 
 		# Group faults by day, then by feeder
 		Feeder_Grouped_Outages = {} # These are percentages, not actual absolute values
@@ -637,7 +632,7 @@ class ORSCalculator(object):
 		SAIDItot, SAIFItot = 0, 0
 		# Group all feeders with the same name
 		for Date, Feeders in Date_Grouped_Outages.iteritems():
-			SAIDIDay, SAIFIDay, FaultsCount = self.GroupedUnplannedFaults.get(Date, [0, 0, 0]) # Return 0 for records we can't find (3 or less ICPs)
+			SAIDIDay, SAIFIDay, NumberOfOutages = self.GroupedUnplannedFaults.get(Date, [0, 0, 0]) # Return 0 for records we can't find (3 or less ICPs)
 			SAIDItot += SAIDIDay
 			SAIFItot += SAIFIDay
 			for Feeder, Stats in Feeders.iteritems():
@@ -651,8 +646,123 @@ class ORSCalculator(object):
 			Table.append([Feeder, Stats[0]/SAIDItot*100, Stats[1]/SAIFItot*100])
 
 		with open(FilePath, "a") as results_file:
+			results_file.write("%s to %s\n" % (startdate, enddate))
 			results_file.write(tabulate(Table, Headings,  tablefmt="orgtbl", floatfmt=".5f", 
 				numalign="right"))
+
+	def Outages_Feeder_Year(self, fileName, startdate, enddate):
+		"""Create a table of outages by feeder, for the time period specified"""
+		FilePath = self._rm_file(fileName)
+
+		# Group faults by day, then by feeder
+		Date_Grouped_Outages = {} # This includes outage affecting 3 or less ICPs, looks like: {Date : {"feeder 1" : [SAIDI, SAIFI, ICP count], "feeder 2" : [SAIDI, SAIFI, ICP count], ...}, Date : {...}, ...}
+		Aggregate_Data = {} # Actual Values (Absolute)
+		self._group_same_feeder(self.UnplannedFaults, Date_Grouped_Outages, startdate, enddate) # Modifies the Date_Grouped_Outages dictionary
+		#self._group_same_feeder(self.PlannedFaults, Date_Grouped_Outages, startdate, enddate) # Modifies the Date_Grouped_Outages dictionary
+		Table = [[]]
+		Heading = []
+		Heading1 = ["Year", "Feeder Name", "SAIDI", "SAIFI", "Cumulative No. ICPs"]
+		SAIDISubtotal, SAIFISubtotal = 0, 0
+		SAIDITotals, SAIFITotals = [], []
+		# Aggreage all faults for a year
+		for Date, Feeders in Date_Grouped_Outages.iteritems():
+			Year = self._get_fiscal_year(Date)
+			if Year in Aggregate_Data:
+				self._add_feeder_dicts(Aggregate_Data[Year], Feeders)
+			else:
+				Aggregate_Data[Year] = Feeders
+				Heading += Heading1
+
+		# Aggregate all the feeder names
+		CombinedFeederNames = {} # How many faults records against each feeder
+		CombinedYears = []
+		for Year, Feeders in Aggregate_Data.iteritems():
+			CombinedYears.append(Year)
+			for Feeder in Feeders:
+				# Overwrite any existing keys...
+				CombinedFeederNames[Feeder] = CombinedFeederNames.get(Feeder, 0) + 1
+		FeederNames = sorted([key for key in CombinedFeederNames]) # Create a sorted list of feeder names
+		CombinedYears = sorted(CombinedYears)
+
+		# Create blocks of stats for each year (NB: the years are keys and can be read out any any order, not neccasirly in cronological order)
+		# Type 1: Indvidual feeder names for every column
+		blocks = []
+		for Year, Feeders in Aggregate_Data.iteritems():
+			cols = []
+			for Feeder, Stats in Feeders.iteritems():
+				cols.append([Year, Feeder, Stats[0], Stats[1], Stats[2]])
+			blocks.append(cols)
+
+		# ---------------------------------------------
+		# Create blocks of stats for each feeder ------
+		# Type 2: The same feeder name on every row
+		blocks = []
+		Heading = ["Feeder Name"]
+		Table = [[Feeder] for Feeder in FeederNames]
+		for Year in CombinedYears:
+			cols = []
+			Heading += [str(Year-1)]
+			Feeders = Aggregate_Data.get(Year, {})
+			for Feeder in FeederNames:
+				Stats = Feeders.get(Feeder, [0, 0, 0])
+				#cols.append([Year, Feeder, Stats[0], Stats[1], Stats[2]])
+				cols.append([Stats[1]])
+			blocks.append(cols)
+		# ----------------------------------------------
+		
+		# Group all the column blocks together
+		for block in blocks:
+			Table = self._add_table_cols(Table, block)
+		
+		# Print the aggreagate data -- Delete this block --
+		#print
+		#for Year, Feeders in Aggregate_Data.iteritems():
+			#for Feeder in Feeders:
+			#	print Feeder
+			#print
+			##print Year, Feeders
+
+		with open(FilePath, "a") as results_file:
+			results_file.write("%s to %s\n" % (startdate, enddate))
+			results_file.write(tabulate(Table, Heading,  tablefmt="plain", floatfmt=".5f", 
+				numalign="right"))
+
+	def _add_feeder_dicts(self, dict1, dict2):
+		"""Add to feeder dicts together, replaces dict1"""
+		# {"feeder 1" : [SAIDI, SAIFI, ICP count], "feeder 2" : [SAIDI, SAIFI, ICP count], ...}
+		# {"feeder 2" : [SAIDI, SAIFI, ICP count], "feeder 3" : [SAIDI, SAIFI, ICP count], ...}
+		# Update existing keys in dict1
+		for key, value in dict1.iteritems():
+			SAIDI, SAIFI, ICPcount = dict2.get(key, [0, 0, 0])
+			dict1[key] = [value[0]+SAIDI, value[1]+SAIFI, value[2]+ICPcount]
+		# Find the keys not in dict1, but that are in dict2, and add them to dict1
+		diffKeys = set(dict2.keys()) - set(dict1.keys())
+		for key in diffKeys:
+			SAIDI, SAIFI, ICPcount = dict2.get(key, [0, 0, 0])
+			dict1[key] = [SAIDI, SAIFI, ICPcount]
+
+	def _add_table_cols(self, leftBlock, rightBlock):
+		"""Adds two blocks of columns to each other"""
+		Table = []
+		leftBlockNull = len(leftBlock[0])*[""] # How many cols wide is the left block
+		rightBlockNull = len(rightBlock[0])*[""] # How many cols wide is the right block
+		rightRowsDim = len(rightBlock)
+		leftRowsDim = len(leftBlock)
+
+		if leftRowsDim - rightRowsDim >= 0:
+			# Left block has more rows
+			for i in range(rightRowsDim):
+				Table.append(leftBlock[i] + rightBlock[i])
+			for i in range(i+1, leftRowsDim):
+				Table.append(leftBlock[i] + rightBlockNull)
+		else:
+			# Right part has more rows
+			for i in range(leftRowsDim):
+				Table.append(leftBlock[i] + rightBlock[i])
+			for i in range(i+1, rightRowsDim):
+				Table.append(leftBlockNull + rightBlock[i])
+		return Table
+			
 
 	def _get_ubv_outages(self, date):
 		"""Get all the unplanned outages that occur on the date of a UBV outage"""

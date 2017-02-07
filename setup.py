@@ -19,6 +19,7 @@ def create_user_files():
 	for filename in file_names:
 		try:
 			shutil.copy2(os.path.join(src_dir, "Data", filename), os.path.join(dest_dir, filename))
+			print "File %s successfully copied" % filename
 		except IOError:
 			if os.path.isfile(os.path.join(dest_dir, filename)):
 				print "The file %s is in use and cannot be replaced/updated" % filename
@@ -58,7 +59,7 @@ if __name__ == "__main__":
 			},
 		  
 		  dependency_links=[], 
-		  zip_safe=False,
+		  #zip_safe=False,
 		  #packages=find_packages()
 		  )
 	

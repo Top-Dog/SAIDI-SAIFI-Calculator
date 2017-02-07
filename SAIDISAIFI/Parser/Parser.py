@@ -88,7 +88,7 @@ class ParseORS(object):
 		except AttributeError:
 			# The user entered an invalid date 
 			return datetime.datetime.now()
-		 
+
 	def Restore_Input_Default(self):
 		"""Restore the default state of the table that has all the ICP counts for each network"""
 		o = pos(row=3, col=1)
