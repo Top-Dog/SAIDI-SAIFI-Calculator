@@ -396,7 +396,7 @@ class ORSSheets(ORSPlots):
 
 		#template = Template(r"C:\Users\sdo\Documents\Research and Learning\Git Repos\SAIDI-SAIFI-Calculator\Data\Templates.xlsx")
 		template = Template(os.path.expanduser('~/Documents/SAIDI and SAIFI/Templates/Templates.xlsx'))
-		template.Place_Template("Rob", self.Sheet._getCell(self.OutputFileName, 1 ,1))
+		template.Place_Template("Commercial", self.Sheet._getCell(self.OutputFileName, 1 ,1))
 		template.Set_Values(out)
 		template.Auto_Fit() # Handles the closing of the template file
 
@@ -416,7 +416,7 @@ class ORSSheets(ORSPlots):
 
 		#template = Template(r"C:\Users\sdo\Documents\Research and Learning\Git Repos\SAIDI-SAIFI-Calculator\Data\Templates.xlsx")
 		template = Template(os.path.expanduser('~/Documents/SAIDI and SAIFI/Templates/Templates.xlsx'))
-		template.Place_Template("Rob", xlSheetSrc._getCell(self.OutputFileName, 1 ,1))
+		template.Place_Template("Commercial", xlSheetSrc._getCell(self.OutputFileName, 1 ,1))
 		template.Set_Values(out)
 		template.Auto_Fit() # Handles the closing of the template file
 

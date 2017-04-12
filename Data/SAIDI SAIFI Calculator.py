@@ -9,7 +9,7 @@ my Excel libriary, spesfic run file
 for the SAIDI SAIFI Calulator py file.
 '''
 import threading, time, multiprocessing, datetime, sys
-from SAIDISAIFI import ORSCalculator, Output, Parser
+from SAIDISAIFI import ORSCalculator, Output, Parser, Constants
 from MSOffice import Excel
 from progbar import ProgressBar
 import SAIDISAIFI
@@ -52,11 +52,17 @@ def worker_networks(startdate, enddate, threadID, NetworkInQueue, NetworkOutQueu
 		for name in names:
 			ICPs.append(ICPNums.get(name))
 
-		# Deal with OJV's boundary values differently
-		if "OTPO" in NetworkName:
-			Network = ORSCalculator(sum_like_keys(ICPs), NetworkName, startdate, enddate, boundarySAIDIValue=13.2414436340332, boundarySAIFIValue=0.176474571228027)
-		else:
-			Network = ORSCalculator(sum_like_keys(ICPs), NetworkName, startdate, enddate)
+		# Deal with OJV's boundary values differently - if no UBV is provided, then the calculated one is used
+		#if "OTPO" in NetworkName:
+		#	Network = ORSCalculator(sum_like_keys(ICPs), NetworkName, startdate, enddate, boundarySAIDIValue=13.2414436340332, boundarySAIFIValue=0.176474571228027)
+		#else:
+		#	Network = ORSCalculator(sum_like_keys(ICPs), NetworkName, startdate, enddate)
+
+		# Bevan said to use the abbreviated figures... so here we go
+		# If more than one network name is in NetworkName use the first four letters of the name e.g. "OTPO, LLNW"
+		Network = ORSCalculator(sum_like_keys(ICPs), NetworkName, startdate, enddate,
+			boundarySAIDIValue=Constants.CC_Vals.get(NetworkName[:4]).get("SAIDI_UBV"), 
+			boundarySAIFIValue=Constants.CC_Vals.get(NetworkName[:4]).get("SAIFI_UBV"))
 
 		Network.generate_stats()
 		Network.display_stats("outage", "Individual Outages.txt")
@@ -179,7 +185,7 @@ if __name__ == "__main__":
 
 	# Populate Excel template sheets - Any future dates will be set to todays date
 	xlDocument.YTD_Sheet(ReportValues)
-	xlDocument.YTD_Book(SAIDISAIFI.Constants.FILE_DIRS.get("GENERAL")+r"\Robs test.xlsx", ReportValues)
+	#xlDocument.YTD_Book(SAIDISAIFI.Constants.FILE_DIRS.get("GENERAL")+r"\Test Template Document.xlsx", ReportValues) # Creates a new file with the templates filled in, just for testing
 	
 	xl.xlApp.ScreenUpdating = True 
 
