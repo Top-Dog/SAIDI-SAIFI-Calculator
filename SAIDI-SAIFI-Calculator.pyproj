@@ -23,6 +23,9 @@
     <PtvsTargetsFile>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets</PtvsTargetsFile>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Data\Change Year.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Data\Restore.py" />
     <Compile Include="Data\SAIDI SAIFI Calculator.py" />
     <Compile Include="Data\Update ICP Count.py" />

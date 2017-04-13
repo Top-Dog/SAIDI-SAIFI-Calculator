@@ -1,5 +1,5 @@
 '''
-Created on 31/05/2016
+Created on 13/04/2017
 
 @author: Sean D. O'Connor
 '''
@@ -13,10 +13,12 @@ if __name__ == "__main__":
 	xl = Excel.Launch.Excel(visible=True, runninginstance=True)
 	print xl.xlBook.Name
 	
-	# Instsiate the parser, restore the defaults to the Input worksheet
+	# Instsiate the parser
 	p = Parser.ParseORS(xl)
-	p.Set_Mean_ICPs(int(sys.argv[1]))
-	#p.Restore_Table_2(int(sys.argv[1])+1)
+
+	# Expects input as a interger referencing the fiscal year that 
+	# is being worked on e.g. 2017 for the year ending 31/3/2018
+	p.Set_Year(int(sys.argv[1]))
 
 	print "Success!"
-	time.sleep(5)
+	#time.sleep(5)
