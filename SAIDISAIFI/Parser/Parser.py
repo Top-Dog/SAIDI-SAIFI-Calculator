@@ -196,7 +196,7 @@ class ParseORS(object):
 			# We need to create some new rows in table1
 			lastrow += 1
 			lastyear += 1
-			self.Sheet.setRange(self.InputSheet, lastrow, o_table1.col, [("31/03/"+str(lastyear), lastyear-1)])
+			self.Sheet.setRange(self.InputSheet, lastrow, o_table1.col, [(datetime.datetime(lastyear, 3, 31), lastyear-1)])
 
 		# Change the labels on table 2 to match the selected year
 		self.Restore_Table_2(lastyear)
