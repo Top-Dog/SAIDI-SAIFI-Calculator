@@ -26,9 +26,9 @@ def create_user_files():
 			else:
 				print "The file %s is missing and cannot be coppied" % filename
 	
-	# Copy all the chart template files
+	# Copy all the template files
 	for file in os.listdir(os.path.join(src_dir, "Data")):
-		if file.endswith(".crtx") or file == "Templates.xlsx":
+		if file.endswith(".crtx") or file == "Templates.xlsx" or file == "Weekly Report Template.docx":
 			shutil.copy2(os.path.join(src_dir, "Data", file), os.path.join(dest_dir, "Templates"))
 		elif file.endswith(".py"):
 			shutil.copy2(os.path.join(src_dir, "Data", file), os.path.join(dest_dir, "Scripts"))

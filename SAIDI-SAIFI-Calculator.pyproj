@@ -26,6 +26,9 @@
     <Compile Include="Data\Change Year.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Data\Export to Word.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Data\Restore.py" />
     <Compile Include="Data\SAIDI SAIFI Calculator.py" />
     <Compile Include="Data\Update ICP Count.py" />

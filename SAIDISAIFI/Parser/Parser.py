@@ -6,6 +6,7 @@ Created on 13/4/2016
 
 import datetime
 from MSOffice.Excel.Worksheets import Sheet
+from MSOffice.Excel.Launch import c
 from .. import pos, CUST_NUMS
 
 class ParseORS(object):

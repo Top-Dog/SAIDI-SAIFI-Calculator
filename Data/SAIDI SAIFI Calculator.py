@@ -8,11 +8,21 @@ Run the SAIDI SAIFI calculator using
 my Excel libriary, spesfic run file
 for the SAIDI SAIFI Calulator py file.
 '''
-import threading, time, multiprocessing, datetime, sys
+import threading, time, multiprocessing, datetime, sys, os, pickle, shutil
 from SAIDISAIFI import ORSCalculator, Output, Parser, Constants
 from MSOffice import Excel
 from progbar import ProgressBar
 import SAIDISAIFI
+
+def save_obj(filedir, filename, obj):
+	"""Saves a python object to a file"""
+	with open(os.path.join(filedir, filename) + '.pkl', 'wb') as f:
+		pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+def load_obj(filedir, filename):
+	"""Loads a python object from a file"""
+	with open(os.path.join(filedir, filename) + '.pkl', 'rb') as f:
+		return pickle.load(f)
 
 def sum_like_keys2(*args):
 	"""Sums all the values that have the same
@@ -38,6 +48,34 @@ def update_prog_bar(progbar):
 		time.sleep(0.5)
 	progbar.update_thread()
 	print
+
+def save_chart_images(sheetname, workingdir):
+	# Save the charts as pictures
+	webdir = os.path.join(workingdir, "temp")
+	xl.SaveAsWebPage(sheetname, webdir)
+	pngfiles= []
+	for filename in os.listdir(os.path.join(webdir, sheetname+"_files")):
+		if filename.endswith(".png"):
+			# Create a tuple of full filename and filesize
+			pngfiles.append(os.path.join(webdir, sheetname+"_files", filename))
+
+	# Check that we have the expected number of charts for creating a SAIDI SAIFI report
+	imgdir = os.path.join(workingdir, "img")
+	# Clear and create a new img directory
+	if os.path.exists(imgdir):
+		shutil.rmtree(imgdir)
+	os.mkdir(os.path.join(workingdir, "img"))
+	if len(pngfiles) == 7:
+		namemap = [("001.png", "EIL_SAIDI"), ("002.png", "EIL_SAIFI"), 
+		  ("003.png", "OJV_SAIDI"), ("004.png", "OJV_SAIFI"),
+		  ("005.png", "TPC_SAIDI"), ("006.png", "TPC_SAIFI")]
+		for imgname in pngfiles:
+			for namepair in namemap:
+				if imgname.endswith(namepair[0]):
+					# Move and rename the file
+					os.rename(imgname,
+						os.path.join(imgdir, namepair[1] + ".png"))
+	shutil.rmtree(webdir) # Clean-up, remove the temp directory and all its contents
 
 def worker_networks(startdate, enddate, threadID, NetworkInQueue, NetworkOutQueue, ICPNums):
 	print "Process %d started" % threadID
@@ -103,7 +141,7 @@ if __name__ == "__main__":
 	p = Parser.ParseORS(xl)
 	ICPNums = p.Read_Num_Cust() # The average number of unique ICPs to be used in the calcs
 	startdate, enddate = p.Read_Dates_To_Publish() # Determine the minimum date range to run the calculator
-	Last_Pub_Date = min(p.Read_Last_Date(), datetime.datetime.now()) # This will be used in "Rob's" table used for commercial
+	Last_Pub_Date = min(p.Read_Last_Date(), datetime.datetime.now()) # This will be used in "Rob's" for commercial stuff. A user configurable date
 	selected_date_sheet = "User Defined" # The name to be appened to "Calculation" for custom date range sheet (uses Last_Pub_Date)
 
 	# Setup the output handlers
@@ -187,6 +225,12 @@ if __name__ == "__main__":
 	xlDocument.YTD_Sheet(ReportValues)
 	#xlDocument.YTD_Book(SAIDISAIFI.Constants.FILE_DIRS.get("GENERAL")+r"\Test Template Document.xlsx", ReportValues) # Creates a new file with the templates filled in, just for testing
 	
+	# Save the (merged) dictionary to a file for later use with other report generators
+	dictdir = os.path.join(Constants.FILE_DIRS.get("GENERAL"), "Stats")
+	save_obj(dictdir, "paramsdict", ReportValues)
+	# Save the charts as pictures
+	save_chart_images("Calculation User Defined", dictdir)
+
 	xl.xlApp.ScreenUpdating = True 
 
 	# Let the user know that we are done - show the execution time

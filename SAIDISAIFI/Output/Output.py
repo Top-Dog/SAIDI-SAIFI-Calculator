@@ -574,7 +574,7 @@ class ORSOutput(ORSSheets):
 		Generate dictionary key value pairs for "Rob's" template - suitable for commercial team.
 
 		@param enddate: Date to stop counting SAIDI and SAIFI for the YTD figures.
-		@param startdate: Defaults to the 1/4/<1 year less than start>. Date to start counting SAIDI and SAIFI for YTD figures.
+		@param startdate: Defaults to the 1/4/<1 year less than end>. Date to start counting SAIDI and SAIFI for YTD figures.
 		@return: A dictionary of the keyword spesfic to the ORS instance currently being handled
 		This functoin will work with date ranges larger than 1 year, but the CC_SAIDI_YTD/CC_SAIFI_YTD interpolations will
 		be meainingless as these are intended to be scaled over 1 whole year starting on 1/4/n and ending on 31/3/n+1.
@@ -636,5 +636,11 @@ class ORSOutput(ORSSheets):
 		SAIFI_M = SAIFI_TARGET/num_days
 		params[name+"CC_SAIDI_YTD"] = SAIDI_M * (1 + x_days)
 		params[name+"CC_SAIFI_YTD"] = SAIFI_M * (1 + x_days)
-
+		params[name+"CC_SAIDI_TARGET"] = CC_Vals.get(self.NetworkName).get("SAIDI_TARGET")
+		params[name+"CC_SAIFI_TARGET"] = CC_Vals.get(self.NetworkName).get("SAIFI_TARGET")
+		params[name+"CC_SAIDI_CAP"]	= CC_Vals.get(self.NetworkName).get("SAIDI_CAP")
+		params[name+"CC_SAIFI_CAP"]	= CC_Vals.get(self.NetworkName).get("SAIFI_CAP")
+		params[name+"CC_SAIDI_COLLAR"] = CC_Vals.get(self.NetworkName).get("SAIDI_COLLAR")
+		params[name+"CC_SAIFI_COLLAR"] = CC_Vals.get(self.NetworkName).get("SAIFI_COLLAR")
+		params[name+"CC_REV_RISK"] = CC_Revenue_At_Risk.get(self.NetworkName) * 0.01
 		return params
