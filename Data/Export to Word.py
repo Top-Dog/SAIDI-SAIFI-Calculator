@@ -48,7 +48,8 @@ def calcreward(saidi_saifi, network):
 	elif network == "OTPO":
 		net = "OJV"
 	ir = 0.5 * 0.01 * Constants.CC_Revenue_At_Risk.get(network) / (Constants.CC_Vals.get(network).get(saidi_saifi+"_CAP") - Constants.CC_Vals.get(network).get(saidi_saifi+"_TARGET") )
-	full_year_forecast = float(get_rtext(saidi_saifi+'_'+net+'_YTD')) - context.get(saidi_saifi+'_'+net+'_YTD_T') + Constants.CC_Vals.get(network).get(saidi_saifi+"_TARGET")
+	full_year_forecast = float(params.get(net+"_"+saidi_saifi+"_UNPLANNED") + params.get(net+"_"+saidi_saifi+"_PLANNED")) - context.get(saidi_saifi+'_'+net+'_YTD_T') + Constants.CC_Vals.get(network).get(saidi_saifi+"_TARGET")
+	#full_year_forecast = float(get_rtext(saidi_saifi+'_'+net+'_YTD')) - context.get(saidi_saifi+'_'+net+'_YTD_T') + Constants.CC_Vals.get(network).get(saidi_saifi+"_TARGET")
 	#full_year_forecast = context.get(saidi_saifi+'_'+net+'_YTD') - context.get(saidi_saifi+'_'+net+'_YTD_T') + Constants.CC_Vals.get(network).get(saidi_saifi+"_TARGET")
 	reward = ir * (Constants.CC_Vals.get(network).get(saidi_saifi+"_TARGET") - full_year_forecast)
 	#adjustedreward = cap_values(context.get(saidi_saifi+'_'+net+'_YTD'), Constants.CC_Vals.get(network).get(saidi_saifi+"_COLLAR"), Constants.CC_Vals.get(network).get(saidi_saifi+"_CAP"), 0.01 * Constants.CC_Revenue_At_Risk.get(network), reward)
@@ -60,6 +61,9 @@ def calcreward(saidi_saifi, network):
 	else:
 		# Force the -ve sign to the left of the dollar sign
 		rewardstr = "-$%.2f" % abs(adjustedreward)
+	
+		# New formatting style (no $ sign)
+	rewardstr = "%.2f" % (adjustedreward)
 	return rewardstr
 
 
@@ -136,7 +140,35 @@ if __name__ == "__main__":
 	context['SAIFI_TPC_EIP'] = RichText((calcreward("SAIFI", "TPCO")), color=colourTPCSAIFI, style="Report")
 	context['SAIFI_OJV_EIP'] = RichText((calcreward("SAIFI", "OTPO")), color=colourOJVSAIFI, style="Report")
 
-	# Create an object of the Word tempalte document
+	# Month to date interruptions
+	context['EIL_PLAN_MTD'] = params.get("EIL_RAW_MONTH_PLANNED")
+	context['TPC_PLAN_MTD'] = params.get("TPC_RAW_MONTH_PLANNED")
+	context['OJV_PLAN_MTD'] = params.get("OJV_RAW_MONTH_PLANNED")
+	context['EIL_UNPLAN_MTD'] = params.get("EIL_RAW_MONTH_UNPLANNED")
+	context['TPC_UNPLAN_MTD'] = params.get("TPC_RAW_MONTH_UNPLANNED")
+	context['OJV_UNPLAN_MTD'] = params.get("OJV_RAW_MONTH_UNPLANNED")
+	context['SAIDI_EIL_MTD_UBV'] = params.get("EIL_RAW_MONTH_NUM_MAJOR_EVENTS_SAIDI")
+	context['SAIDI_TPC_MTD_UBV'] = params.get("TPC_RAW_MONTH_NUM_MAJOR_EVENTS_SAIDI")
+	context['SAIDI_OJV_MTD_UBV'] = params.get("OJV_RAW_MONTH_NUM_MAJOR_EVENTS_SAIDI")
+	context['SAIFI_EIL_MTD_UBV'] = params.get("EIL_RAW_MONTH_NUM_MAJOR_EVENTS_SAIFI")
+	context['SAIFI_TPC_MTD_UBV'] = params.get("TPC_RAW_MONTH_NUM_MAJOR_EVENTS_SAIFI")
+	context['SAIFI_OJV_MTD_UBV'] = params.get("OJV_RAW_MONTH_NUM_MAJOR_EVENTS_SAIFI")
+
+	# Year to date interruptions
+	context['EIL_PLAN_YTD'] = params.get("EIL_RAW_PLANNED")
+	context['TPC_PLAN_YTD'] = params.get("TPC_RAW_PLANNED")
+	context['OJV_PLAN_YTD'] = params.get("OJV_RAW_PLANNED")
+	context['EIL_UNPLAN_YTD'] = params.get("EIL_RAW_UNPLANNED")
+	context['TPC_UNPLAN_YTD'] = params.get("TPC_RAW_UNPLANNED")
+	context['OJV_UNPLAN_YTD'] = params.get("OJV_RAW_UNPLANNED")
+	context['SAIDI_EIL_YTD_UBV'] = params.get("EIL_RAW_NUM_MAJOR_EVENTS_SAIDI")
+	context['SAIDI_TPC_YTD_UBV'] = params.get("TPC_RAW_NUM_MAJOR_EVENTS_SAIDI")
+	context['SAIDI_OJV_YTD_UBV'] = params.get("OJV_RAW_NUM_MAJOR_EVENTS_SAIDI")
+	context['SAIFI_EIL_YTD_UBV'] = params.get("EIL_RAW_NUM_MAJOR_EVENTS_SAIFI")
+	context['SAIFI_TPC_YTD_UBV'] = params.get("TPC_RAW_NUM_MAJOR_EVENTS_SAIFI")
+	context['SAIFI_OJV_YTD_UBV'] = params.get("OJV_RAW_NUM_MAJOR_EVENTS_SAIFI")
+
+	# Create an object of the Word template document
 	doc = DocxTemplate(os.path.join(Constants.FILE_DIRS.get("GENERAL"), "Templates", "Weekly Report Template.docx"))
 
 	# Add images of the charts to the document
