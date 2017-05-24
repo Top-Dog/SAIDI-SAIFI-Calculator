@@ -96,7 +96,8 @@ def worker_networks(startdate, enddate, threadID, NetworkInQueue, NetworkOutQueu
 		#else:
 		#	Network = ORSCalculator(sum_like_keys(ICPs), NetworkName, startdate, enddate)
 
-		# Bevan said to use the abbreviated figures... so here we go
+		# Bevan said to use the abbreviated figures... so here we go (NB: PWC auditors denied this change).
+		# Check the Constants.py file actual values used in the calculation
 		# If more than one network name is in NetworkName use the first four letters of the name e.g. "OTPO, LLNW"
 		Network = ORSCalculator(sum_like_keys(ICPs), NetworkName, startdate, enddate,
 			boundarySAIDIValue=Constants.CC_Vals.get(NetworkName[:4]).get("SAIDI_UBV"), 
