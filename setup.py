@@ -36,7 +36,7 @@ def create_user_files():
 		
 
 if __name__ == "__main__":
-	setup(name='SAIDI/SAIFI (ORS)',
+	setup(name='SAIDI SAIFI ORS',
 		  version='0.1',
 		  description='A package to assist with SAIDI/SAIFI calculations and data presentation',
 		  long_description=readme(),
@@ -48,7 +48,7 @@ if __name__ == "__main__":
 		  # adding packages
 		  #packages=find_packages('src'),
 		  #package_dir = {'':'src'},
-		  install_requires=['numpy', 'pypiwin32', 'pyodbc', 'six', 'wheel', 'virtualenv', 'tabulate'], #pywin32
+		  install_requires=['numpy', 'pypiwin32', 'pyodbc', 'six', 'wheel', 'virtualenv', 'tabulate', 'docxtpl'], #pywin32
 		  
 		  # Add static data files
 		  include_package_data = True,
