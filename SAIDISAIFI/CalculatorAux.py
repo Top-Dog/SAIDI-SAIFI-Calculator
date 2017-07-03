@@ -20,7 +20,7 @@ class ODBC_ORS_ACCESS(object):
 		# Connection Parameters (Const)
 		self.connStr = (
 			r"Driver={Microsoft Access Driver (*.mdb, *.accdb)};"
-			r"DBQ=H:\MSA_Prog\ORS_Prog_a2k3.mde;"
+			r"DBQ=H:\MSA_Prog\ORS_Prog_a2k10.mde;"
 			)
 		# The SQL query to perform on the DB.
 		# We are using my existing query "Query_Sean_Outage_Class",
@@ -76,7 +76,7 @@ class ODBC_ORS(object):
 	def __init__(self):
 		# Connection Parameters (Const)
 		self.connStr = (
-			"DRIVER={SQL Server};SERVER=PNLICP1"
+			"DRIVER={SQL Server};SERVER=PNLSQLICP1"
 			)
 
 		# The SQL query to perform on the DB.
