@@ -76,7 +76,7 @@ class ODBC_ORS(object):
 	def __init__(self):
 		# Connection Parameters (Const)
 		self.connStr = (
-			"DRIVER={SQL Server};SERVER=PNLSQLICP1"
+			"DRIVER={SQL Server};SERVER=PNLSQLICP1;Trusted_Connection=yes"
 			)
 
 		# The SQL query to perform on the DB.
@@ -103,7 +103,11 @@ class ODBC_ORS(object):
 	
 	def _connect(self):
 		"""Handle a connetion to the ODBC"""
-		self.connection = pyodbc.connect(self.connStr)
+		try:
+			self.connection = pyodbc.connect(self.connStr)
+		except:
+			print "Could not connect using the connection string % s"
+			exit()
 		self.cursor = self.connection.cursor()
 		
 	def _run_query(self):
