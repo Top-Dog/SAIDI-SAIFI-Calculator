@@ -298,7 +298,7 @@ class ORSPlots(object): # ORSCalculator
 		if network == "ELIN":
 			ColOffset += 0
 			chartpath = os.path.expanduser('~/Documents/SAIDI and SAIFI/Templates/ORSChartEIL2.crtx')
-			FullName = "Electricty Invercargill"
+			FullName = "Electricity Invercargill"
 		elif network == "OTPO":
 			ColOffset += len(self.DataHeadings) * len(self.IndexHeadings)
 			chartpath = os.path.expanduser('~/Documents/SAIDI and SAIFI/Templates/ORSChartOJV2.crtx')

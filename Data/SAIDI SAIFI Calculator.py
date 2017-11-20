@@ -5,8 +5,8 @@ Last Modfied: 18/4/2016
 @author: Sean D. O'Connor
 
 Run the SAIDI SAIFI calculator using 
-my Excel libriary, spesfic run file
-for the SAIDI SAIFI Calulator py file.
+my Excel library, spesfically run files
+for the SAIDI SAIFI Calulator.
 '''
 import threading, time, multiprocessing, datetime, sys, os, pickle, shutil
 from SAIDISAIFI import ORSCalculator, Output, Parser, Constants
@@ -78,6 +78,7 @@ def save_chart_images(sheetname, workingdir):
 	shutil.rmtree(webdir) # Clean-up, remove the temp directory and all its contents
 
 def worker_networks(startdate, enddate, threadID, NetworkInQueue, NetworkOutQueue, ICPNums):
+	"""Start a new worker for every network."""
 	print "Process %d started" % threadID
 	while True:
 		try:
@@ -113,11 +114,11 @@ def worker_networks(startdate, enddate, threadID, NetworkInQueue, NetworkOutQueu
 		DBG = SAIDISAIFI.CalculatorAux.ORSDebug(Network)
 		DBG.create_csv()
 
-		# Distrobution Automation calculation over the display period (same interval as the output tables)
+		# Distribution Automation calculation over the display period (same interval as the output tables)
 		_Start_Time = datetime.datetime(2002, 4, 1)
 		_End_Time = datetime.datetime.now() #datetime.datetime(2016, 3, 31)
-		Network.DA_Table("DA Table.txt", datetime.datetime(2015, 4, 1), datetime.datetime(2016, 3, 31))
-		Network.Outages_Feeder_Year("DA Profiles.txt", datetime.datetime(2002, 4, 1), datetime.datetime(2016, 9, 16))
+		Network.DA_Table("DA Table.txt", datetime.datetime(2016, 4, 1), datetime.datetime(2017, 3, 31))
+		Network.Outages_Feeder_Year("DA Profiles.txt", datetime.datetime(2002, 4, 1), datetime.datetime(2017, 8, 29))
 		Network.Capped_Outages_Table("UBV Outages.txt", _Start_Time, _End_Time)
 
 		# Put the completed network into an output queue

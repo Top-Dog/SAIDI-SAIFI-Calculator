@@ -118,9 +118,9 @@ class ORSCalculator(object):
 		"""Generates three dictionaries of faults: planned, unplanned, all.
 		Using a csv file as the data source"""
 		with open(self.outFolder + self.ORSin, 'rb') as orscsvfile:
-			ORS = csv.reader(orscsvfile)
-			ORS.next() # Incriment the file pointer past the header
-			for record in ORS:
+			records = csv.reader(orscsvfile)
+			records.next() # Incriment the file pointer past the header
+			for record in records:
 				self._process_fault_record(record, FaultType, IndividualFaults)
 				
 		self._group_same_day(IndividualFaults, DailyFaults)
@@ -140,9 +140,9 @@ class ORSCalculator(object):
 			# Warning, a hack: a way to read in the transpower outages for the purchased OJV/transpower assets
 			try:
 				with open(os.path.join(FILE_DIRS.get("GENERAL"), "EXTRA RECORDS.csv"), 'rb') as orscsvfile:
-					ORS = csv.reader(orscsvfile)
-					ORS.next() # Incriment the file pointer past the header
-					for record in ORS:
+					records = csv.reader(orscsvfile)
+					records.next() # Incriment the file pointer past the header
+					for record in records:
 						# As long as the extra fault is a PNL class outage it will be counted (also autoreclose='N")
 						self._process_fault_record(record, FaultType, IndividualFaults)
 			except IOError:
@@ -225,9 +225,9 @@ class ORSCalculator(object):
 						print Buff
 
 	def _group_same_feeder(self, dic, sortedDic, startdate, enddate):
-		"""Group outages by day and by feeder, so the sorted dictinary will contain 
+		"""Group outages by day and by feeder, so the sorted dictionary will contain 
 		dates of individual feeder outages per day."""
-		# {date : {"feeder 1" : [SAIDI, SAIFI, ICP count], "feeder 2" : [SAIDI, SAIFI, ICP count], ...}}
+		# {date : {"feeder 1" : [SAIDI, SAIFI, ICP count, [List of ORS numbers]], "feeder 2" : [SAIDI, SAIFI, ICP count, [List of ORS numbers]], ...}}
 		# These are raw SAIDI/SAIFIs i.e. there are no boundary value cappings applied
 
 		# Loop through the domain [startdate, enddate], so if start and end date re the same you will get one days worth of data back
@@ -237,8 +237,8 @@ class ORSCalculator(object):
 				# Loop through every linked ORS No. so we don't need to use a "Grouped Unplanned Faults" dictionary.
 				if Date == startdate:
 					Feeders = sortedDic.get(startdate, {})
-					SAIDI0, SAIFI0, ICPs0 = Feeders.get(Feeder, [0, 0, 0])
-					Feeders[Feeder] = [SAIDI0 + SAIDI, SAIFI0 + SAIFI, ICPs0 + UniqueICPs]
+					SAIDI0, SAIFI0, ICPs0, FaultIDs = Feeders.get(Feeder, [0, 0, 0, []])
+					Feeders[Feeder] = [SAIDI0 + SAIDI, SAIFI0 + SAIFI, ICPs0 + UniqueICPs, FaultIDs + [linkedORSNum]]
 					sortedDic[startdate] = Feeders
 			startdate += self.deltaDay
 
@@ -664,7 +664,7 @@ class ORSCalculator(object):
 		Heading1 = ["Year", "Feeder Name", "SAIDI", "SAIFI", "Cumulative No. ICPs"]
 		SAIDISubtotal, SAIFISubtotal = 0, 0
 		SAIDITotals, SAIFITotals = [], []
-		# Aggreage all faults for a year
+		# Aggregate all faults for a year (combines all the faults for a given feeder over a year)
 		for Date, Feeders in Date_Grouped_Outages.iteritems():
 			Year = self._get_fiscal_year(Date)
 			if Year in Aggregate_Data:
@@ -681,65 +681,76 @@ class ORSCalculator(object):
 			for Feeder in Feeders:
 				# Overwrite any existing keys...
 				CombinedFeederNames[Feeder] = CombinedFeederNames.get(Feeder, 0) + 1
-		FeederNames = sorted([key for key in CombinedFeederNames]) # Create a sorted list of feeder names
+		FeederNames = sorted([key for key in CombinedFeederNames])
 		CombinedYears = sorted(CombinedYears)
 
-		# Create blocks of stats for each year (NB: the years are keys and can be read out any any order, not neccasirly in cronological order)
-		# Type 1: Indvidual feeder names for every column
-		blocks = []
-		for Year, Feeders in Aggregate_Data.iteritems():
-			cols = []
-			for Feeder, Stats in Feeders.iteritems():
-				cols.append([Year, Feeder, Stats[0], Stats[1], Stats[2]])
-			blocks.append(cols)
+		# Table type 1
+		# Create blocks of stats for each year 
+		# Indvidual feeder names for every column
+		#blocks = []
+		#for Year, Feeders in Aggregate_Data.iteritems():
+		#	cols = []
+		#	for Feeder, Stats in Feeders.iteritems():
+		#		cols.append([Year, Feeder, Stats[0], Stats[1], Stats[2]])
+		#	blocks.append(cols)
+		#	#Table = self._add_table_cols(Table, block)
 
-		# ---------------------------------------------
-		# Create blocks of stats for each feeder ------
-		# Type 2: The same feeder name on every row
+		# Table Type 2
+		# Create blocks of stats for each feeder
+		# The same feeder name on every row
 		blocks = []
 		Heading = ["Feeder Name"]
 		Table = [[Feeder] for Feeder in FeederNames]
 		for Year in CombinedYears:
-			cols = []
-			Heading += [str(Year-1)]
+			TableCol = []
+			Heading += [str(Year-1) + " SAIDI", str(Year-1) + " SAIFI", str(Year-1) + " ORS No."]
+			#HeadingDate = str(Year-1)
 			Feeders = Aggregate_Data.get(Year, {})
 			for Feeder in FeederNames:
-				Stats = Feeders.get(Feeder, [0, 0, 0])
-				#cols.append([Year, Feeder, Stats[0], Stats[1], Stats[2]])
-				cols.append([Stats[1]])
-			blocks.append(cols)
-		# ----------------------------------------------
+				Stats = Feeders.get(Feeder, [0, 0, 0, []]) # SAIDI, SAIFI, ICP Nums, ORS Nums.
+				TableCol.append([Stats[0], Stats[1], Stats[3]])
+			blocks.append(TableCol)
 		
 		# Group all the column blocks together
 		for block in blocks:
 			Table = self._add_table_cols(Table, block)
-		
-		# Print the aggreagate data -- Delete this block --
-		#print
-		#for Year, Feeders in Aggregate_Data.iteritems():
-			#for Feeder in Feeders:
-			#	print Feeder
-			#print
-			##print Year, Feeders
 
+		# Write the headings and table to the output file
 		with open(FilePath, "a") as results_file:
 			results_file.write("%s to %s\n" % (startdate, enddate))
-			results_file.write(tabulate(Table, Heading,  tablefmt="plain", floatfmt=".5f", 
-				numalign="right"))
+			results_file.write(tabulate(Table, Heading,  
+							   tablefmt="plain", floatfmt=".5f", numalign="right"))
+
+		# Write the table to a csv file
+		with open(os.path.splitext(FilePath)[0] + ".csv", "w") as csvfile:
+			csvfile.write("%s to %s\n" % (startdate, enddate))
+			for col in Heading:
+				csvfile.write(col + ",")
+			csvfile.write("\n")
+			for row in Table:
+				for col in row:
+					if col is not None:
+						csvfile.write('"' + str(col) + '"')
+					else:
+						csvfile.write('"' + '"')
+					csvfile.write(",")
+
+				csvfile.write("\n")
+
 
 	def _add_feeder_dicts(self, dict1, dict2):
 		"""Add to feeder dicts together, replaces dict1"""
-		# {"feeder 1" : [SAIDI, SAIFI, ICP count], "feeder 2" : [SAIDI, SAIFI, ICP count], ...}
-		# {"feeder 2" : [SAIDI, SAIFI, ICP count], "feeder 3" : [SAIDI, SAIFI, ICP count], ...}
+		# {"feeder 1" : [SAIDI, SAIFI, ICP count, [ORS #s]], "feeder 2" : [SAIDI, SAIFI, ICP count, [ORS #s]], ...}
+		# {"feeder 2" : [SAIDI, SAIFI, ICP count, [ORS #s]], "feeder 3" : [SAIDI, SAIFI, ICP count, [ORS #s]], ...}
 		# Update existing keys in dict1
 		for key, value in dict1.iteritems():
-			SAIDI, SAIFI, ICPcount = dict2.get(key, [0, 0, 0])
-			dict1[key] = [value[0]+SAIDI, value[1]+SAIFI, value[2]+ICPcount]
+			SAIDI, SAIFI, ICPcount, FaultIDs = dict2.get(key, [0, 0, 0, []])
+			dict1[key] = [value[0]+SAIDI, value[1]+SAIFI, value[2]+ICPcount, value[3]+FaultIDs]
 		# Find the keys not in dict1, but that are in dict2, and add them to dict1
 		diffKeys = set(dict2.keys()) - set(dict1.keys())
 		for key in diffKeys:
-			SAIDI, SAIFI, ICPcount = dict2.get(key, [0, 0, 0])
-			dict1[key] = [SAIDI, SAIFI, ICPcount]
+			SAIDI, SAIFI, ICPcount, FaultIDs = dict2.get(key, [0, 0, 0, []])
+			dict1[key] = [SAIDI, SAIFI, ICPcount, FaultIDs]
 
 	def _add_table_cols(self, leftBlock, rightBlock):
 		"""Adds two blocks of columns to each other"""
