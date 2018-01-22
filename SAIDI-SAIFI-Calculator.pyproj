@@ -35,6 +35,9 @@
     <Compile Include="SAIDISAIFI\Calculator15.py" />
     <Compile Include="SAIDISAIFI\CalculatorAux.py" />
     <Compile Include="SAIDISAIFI\Constants.py" />
+    <Compile Include="SAIDISAIFI\Data Structures.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="SAIDISAIFI\Output\Output.py" />
     <Compile Include="SAIDISAIFI\Output\__init__.py" />
     <Compile Include="SAIDISAIFI\Parser\Parser.py" />
@@ -52,6 +55,7 @@
     <InterpreterReference Include="{2af0f10d-7135-4994-9156-5d01c9c11b7e}\2.7" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="SAIDISAIFI\OutageDetail.sql" />
     <Content Include="SAIDISAIFI\ORSquery - Isolation Points.sql" />
     <Content Include="SAIDISAIFI\ORSquery.sql" />
   </ItemGroup>

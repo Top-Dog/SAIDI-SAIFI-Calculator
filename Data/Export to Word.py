@@ -5,6 +5,8 @@ a weekly report.
 Fix: The word templates uses the round(3) function, which does
 not format to a fixed number of DP like "%0.4f". Formatted strings
 seem to cause (charecter encoding) problems in word though.
+
+Author: sdo
 """
 
 import time, os, pickle, datetime
@@ -68,6 +70,8 @@ def calcreward(saidi_saifi, network):
 
 
 if __name__ == "__main__":
+	networks = ["EIL", "TPC", "OJV"]
+	indices = ["SAIDI", "SAIFI"]
 	dictdir = os.path.join(Constants.FILE_DIRS.get("GENERAL"), "Stats")
 	params = load_obj(dictdir, "paramsdict")
 
@@ -76,39 +80,54 @@ if __name__ == "__main__":
 	# The date of the results file was generted and saved
 	context['SAIDI_SAIFI_DATE'] = params.get("EIL_DATE_END").strftime("%d/%m/%Y")
 
-	# YTD Actuals - Rich Text (so round here instead of template)
+	# YTD Actuals - Rich Text (so round numeric values here instead of template)
+	# EIL SAIDI
 	if params.get("EIL_SAIDI_UNPLANNED") + params.get("EIL_SAIDI_PLANNED") > params.get("EIL_CC_SAIDI_YTD"):
 		colourEILSAIDI="#FF0000"
 	else:
 		colourEILSAIDI="#3AB14D"
 	context['SAIDI_EIL_YTD'] = RichText("%.3f" % (params.get("EIL_SAIDI_UNPLANNED") + params.get("EIL_SAIDI_PLANNED")), color=colourEILSAIDI, style="Report")
+	
+	# TPC SAIDI
 	if params.get("TPC_SAIDI_UNPLANNED") + params.get("TPC_SAIDI_PLANNED") > params.get("TPC_CC_SAIDI_YTD"):
 		colourTPCSAIDI="#FF0000"
 	else:
 		colourTPCSAIDI="#3AB14D"
 	context['SAIDI_TPC_YTD'] = RichText("%.3f" % (params.get("TPC_SAIDI_UNPLANNED") + params.get("TPC_SAIDI_PLANNED")), color=colourTPCSAIDI, style="Report")
+	
+	# OJV+ESL SAIDI
 	if params.get("OJV_SAIDI_UNPLANNED") + params.get("OJV_SAIDI_PLANNED") > params.get("OJV_CC_SAIDI_YTD"):
 		colourOJVSAIDI="#FF0000"
 	else:
 		colourOJVSAIDI="#3AB14D"
 	context['SAIDI_OJV_YTD'] = RichText("%.3f" % (params.get("OJV_SAIDI_UNPLANNED") + params.get("OJV_SAIDI_PLANNED")), color=colourOJVSAIDI, style="Report")
+	
+	# EIL SAIFI
 	if params.get("EIL_SAIFI_UNPLANNED") + params.get("EIL_SAIFI_PLANNED") > params.get("EIL_CC_SAIFI_YTD"):
 		colourEILSAIFI="#FF0000"
 	else:
 		colourEILSAIFI="#3AB14D"
 	context['SAIFI_EIL_YTD'] = RichText("%.3f" % (params.get("EIL_SAIFI_UNPLANNED") + params.get("EIL_SAIFI_PLANNED")), color=colourEILSAIFI, style="Report")
+	
+	# TPC SAIFI
 	if params.get("TPC_SAIFI_UNPLANNED") + params.get("TPC_SAIFI_PLANNED") > params.get("TPC_CC_SAIFI_YTD"):
 		colourTPCSAIFI="#FF0000"
 	else:
 		colourTPCSAIFI="#3AB14D"
 	context['SAIFI_TPC_YTD'] = RichText("%.3f" % (params.get("TPC_SAIFI_UNPLANNED") + params.get("TPC_SAIFI_PLANNED")), color=colourTPCSAIFI, style="Report")
+	
+	# OJV+ESL SAIFI
 	if params.get("OJV_SAIFI_UNPLANNED") + params.get("OJV_SAIFI_PLANNED") > params.get("OJV_CC_SAIFI_YTD"):
 		colourOJVSAIFI="#FF0000"
 	else:
 		colourOJVSAIFI="#3AB14D"
 	context['SAIFI_OJV_YTD'] = RichText("%.3f" % (params.get("OJV_SAIFI_UNPLANNED") + params.get("OJV_SAIFI_PLANNED")), color=colourOJVSAIFI, style="Report")
 
-	# YTD Targets
+	# Fill the template context dictionary
+	for network in networks:
+		for indice in indices:
+			# YTD Targets
+			context["{0}_{1}_YTD_T".format(indice, network)] = params.get("{0}_CC_{1}_YTD".format(network, indice))
 	context['SAIDI_EIL_YTD_T'] = params.get("EIL_CC_SAIDI_YTD")
 	context['SAIDI_TPC_YTD_T'] = params.get("TPC_CC_SAIDI_YTD")
 	context['SAIDI_OJV_YTD_T'] = params.get("OJV_CC_SAIDI_YTD")

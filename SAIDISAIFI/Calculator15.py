@@ -174,7 +174,7 @@ class ORSCalculator(object):
 				# Get the stats for an old record in the ORS, or 0 if nothing exists
 				Date0, SAIDI0, SAIFI0, ICPcount0, Feeder0 = IndividualFaults.get(record[self.LinkedORSCol], [Date, 0, 0, 0, Feeder])
 				if record[self.ORSNumCol] == record[self.LinkedORSCol]:
-					# The outage is always brought back to the date where the linked ORS# and ORS# are the same (not the max or min. date) - should it be the min. date?
+					# The outage is always brought back to the date where the linked ORS# and ORS# are the same (not the max. or min. date) - should it be the min. date?
 					Date0 = Date
 				if SAIDI0 + SAIDI != 0 and SAIFI0 + SAIFI != 0:
 					# Only add non-zero records to the dictionaries, i.e. only faults are added (no clear days with 0 SAIDI/SAIFI)
@@ -925,3 +925,6 @@ class ORSCalculator(object):
 						   "|", pSAIDI, upSAIDI, pSAIDI+upSAIDI, 
 						   "|", pSAIFI, upSAIFI, pSAIFI+upSAIFI])
 
+class ORSCalculatorEnhanced(ORSCalculator):
+	def __init__(self):
+		super(ORSCalculatorEnhanced, self)

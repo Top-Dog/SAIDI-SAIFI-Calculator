@@ -146,6 +146,24 @@ class ODBC_ORS(object):
 		
 		self._connect()
 		self._run_query()
+
+	def load_sql(self, filename):
+		"""Returns a SQL query from the supplied filename 
+		(must be in the same directory as .py source file)"""
+		dir = os.getcwd()
+		fpath = os.path.join(dir, filename)
+		assert os.path.exists(fpath), "The Supplied SQL filename cannot be found"
+		lines = []
+		with open(fpath, "r") as inputfile:
+			for line in inputfile:
+				lines.append(line)
+		return "".join(lines)
+
+	def run_query(sql):
+		self._connect()
+		self._run_query()
+		return self.get_query_results()
+
 	
 	def _connect(self):
 		"""Handle a connetion to the ODBC"""
@@ -175,7 +193,7 @@ class ODBC_ORS(object):
 		self.queryresults.close()
 		self.connection.close()
 
-def ORSComCom(object):
+class ORSComCom(object):
 	def __init__(self):
 		pass
 	
