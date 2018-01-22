@@ -2,11 +2,12 @@
 Application script to allow the user to output graphs and data to 
 a weekly report.
 
-Fix: The word templates uses the round(3) function, which does
+Fix: The Word templates uses the round(3) function, which does
 not format to a fixed number of DP like "%0.4f". Formatted strings
-seem to cause (charecter encoding) problems in word though.
+seem to cause (charecter encoding) problems in Word though.
 
 Author: sdo
+Updated: 22/01/2018 (refactored to use for loops over network and indice names)
 """
 
 import time, os, pickle, datetime
@@ -70,8 +71,9 @@ def calcreward(saidi_saifi, network):
 
 
 if __name__ == "__main__":
-	networks = ["EIL", "TPC", "OJV"]
+	networks = [["EIL", "ELIN"], ["TPC", "TPCO"], ["OJV", "OTPO"]]
 	indices = ["SAIDI", "SAIFI"]
+	colours = {}
 	dictdir = os.path.join(Constants.FILE_DIRS.get("GENERAL"), "Stats")
 	params = load_obj(dictdir, "paramsdict")
 
@@ -80,123 +82,51 @@ if __name__ == "__main__":
 	# The date of the results file was generted and saved
 	context['SAIDI_SAIFI_DATE'] = params.get("EIL_DATE_END").strftime("%d/%m/%Y")
 
-	# YTD Actuals - Rich Text (so round numeric values here instead of template)
-	# EIL SAIDI
-	if params.get("EIL_SAIDI_UNPLANNED") + params.get("EIL_SAIDI_PLANNED") > params.get("EIL_CC_SAIDI_YTD"):
-		colourEILSAIDI="#FF0000"
-	else:
-		colourEILSAIDI="#3AB14D"
-	context['SAIDI_EIL_YTD'] = RichText("%.3f" % (params.get("EIL_SAIDI_UNPLANNED") + params.get("EIL_SAIDI_PLANNED")), color=colourEILSAIDI, style="Report")
-	
-	# TPC SAIDI
-	if params.get("TPC_SAIDI_UNPLANNED") + params.get("TPC_SAIDI_PLANNED") > params.get("TPC_CC_SAIDI_YTD"):
-		colourTPCSAIDI="#FF0000"
-	else:
-		colourTPCSAIDI="#3AB14D"
-	context['SAIDI_TPC_YTD'] = RichText("%.3f" % (params.get("TPC_SAIDI_UNPLANNED") + params.get("TPC_SAIDI_PLANNED")), color=colourTPCSAIDI, style="Report")
-	
-	# OJV+ESL SAIDI
-	if params.get("OJV_SAIDI_UNPLANNED") + params.get("OJV_SAIDI_PLANNED") > params.get("OJV_CC_SAIDI_YTD"):
-		colourOJVSAIDI="#FF0000"
-	else:
-		colourOJVSAIDI="#3AB14D"
-	context['SAIDI_OJV_YTD'] = RichText("%.3f" % (params.get("OJV_SAIDI_UNPLANNED") + params.get("OJV_SAIDI_PLANNED")), color=colourOJVSAIDI, style="Report")
-	
-	# EIL SAIFI
-	if params.get("EIL_SAIFI_UNPLANNED") + params.get("EIL_SAIFI_PLANNED") > params.get("EIL_CC_SAIFI_YTD"):
-		colourEILSAIFI="#FF0000"
-	else:
-		colourEILSAIFI="#3AB14D"
-	context['SAIFI_EIL_YTD'] = RichText("%.3f" % (params.get("EIL_SAIFI_UNPLANNED") + params.get("EIL_SAIFI_PLANNED")), color=colourEILSAIFI, style="Report")
-	
-	# TPC SAIFI
-	if params.get("TPC_SAIFI_UNPLANNED") + params.get("TPC_SAIFI_PLANNED") > params.get("TPC_CC_SAIFI_YTD"):
-		colourTPCSAIFI="#FF0000"
-	else:
-		colourTPCSAIFI="#3AB14D"
-	context['SAIFI_TPC_YTD'] = RichText("%.3f" % (params.get("TPC_SAIFI_UNPLANNED") + params.get("TPC_SAIFI_PLANNED")), color=colourTPCSAIFI, style="Report")
-	
-	# OJV+ESL SAIFI
-	if params.get("OJV_SAIFI_UNPLANNED") + params.get("OJV_SAIFI_PLANNED") > params.get("OJV_CC_SAIFI_YTD"):
-		colourOJVSAIFI="#FF0000"
-	else:
-		colourOJVSAIFI="#3AB14D"
-	context['SAIFI_OJV_YTD'] = RichText("%.3f" % (params.get("OJV_SAIFI_UNPLANNED") + params.get("OJV_SAIFI_PLANNED")), color=colourOJVSAIFI, style="Report")
+	# Create an object of the Word template document
+	doc = DocxTemplate(os.path.join(Constants.FILE_DIRS.get("GENERAL"), "Templates", "Weekly Report Template.docx"))
 
 	# Fill the template context dictionary
 	for network in networks:
 		for indice in indices:
+			ref_string = "{0}_{1}".format(network[0], indice)
+
+			# YTD Actuals - Rich Text (so round numeric values here instead of template)
+			if params.get("{0}_{1}_UNPLANNED".format(network[0], indice)) + params.get("{0}_{1}_PLANNED".format(network[0], indice)) > params.get("{0}_CC_{1}_YTD".format(network[0], indice)):
+				colours[ref_string] = "#FF0000"
+			else:
+				colours[ref_string] = "#3AB14D"
+			context["{1}_{0}_YTD".format(network[0], indice)] = RichText("%.3f" % (params.get("{0}_{1}_UNPLANNED".format(network[0], indice)) + params.get("{0}_{1}_PLANNED".format(network[0], indice))), color=colours.get(ref_string), style="Report")
+
 			# YTD Targets
-			context["{0}_{1}_YTD_T".format(indice, network)] = params.get("{0}_CC_{1}_YTD".format(network, indice))
-	context['SAIDI_EIL_YTD_T'] = params.get("EIL_CC_SAIDI_YTD")
-	context['SAIDI_TPC_YTD_T'] = params.get("TPC_CC_SAIDI_YTD")
-	context['SAIDI_OJV_YTD_T'] = params.get("OJV_CC_SAIDI_YTD")
-	context['SAIFI_EIL_YTD_T'] = params.get("EIL_CC_SAIFI_YTD")
-	context['SAIFI_TPC_YTD_T'] = params.get("TPC_CC_SAIFI_YTD")
-	context['SAIFI_OJV_YTD_T'] = params.get("OJV_CC_SAIFI_YTD")
+			context["{0}_{1}_YTD_T".format(indice, network[0])] = params.get("{0}_CC_{1}_YTD".format(network[0], indice))
 
-	# EOY Targets
-	context['SAIDI_EIL_EOY_T'] = Constants.CC_Vals.get("ELIN").get("SAIDI_TARGET")
-	context['SAIDI_TPC_EOY_T'] = Constants.CC_Vals.get("TPCO").get("SAIDI_TARGET")
-	context['SAIDI_OJV_EOY_T'] = Constants.CC_Vals.get("OTPO").get("SAIDI_TARGET")
-	context['SAIFI_EIL_EOY_T'] = Constants.CC_Vals.get("ELIN").get("SAIFI_TARGET")
-	context['SAIFI_TPC_EOY_T'] = Constants.CC_Vals.get("TPCO").get("SAIFI_TARGET")
-	context['SAIFI_OJV_EOY_T'] = Constants.CC_Vals.get("OTPO").get("SAIFI_TARGET")
+			# EOY Targets
+			context["{0}_{1}_EOY_T".format(indice, network[0])] = Constants.CC_Vals.get(network[1]).get(indice+"_TARGET")
+			
+			# EOY Limits/Caps
+			context["{0}_{1}_EOY_L".format(indice, network[0])] = Constants.CC_Vals.get(network[1]).get(indice+"_CAP")
 
-	# EOY Limits/Caps
-	context['SAIDI_EIL_EOY_L'] = Constants.CC_Vals.get("ELIN").get("SAIDI_CAP")
-	context['SAIDI_TPC_EOY_L'] = Constants.CC_Vals.get("TPCO").get("SAIDI_CAP")
-	context['SAIDI_OJV_EOY_L'] = Constants.CC_Vals.get("OTPO").get("SAIDI_CAP")
-	context['SAIFI_EIL_EOY_L'] = Constants.CC_Vals.get("ELIN").get("SAIFI_CAP")
-	context['SAIFI_TPC_EOY_L'] = Constants.CC_Vals.get("TPCO").get("SAIFI_CAP")
-	context['SAIFI_OJV_EOY_L'] = Constants.CC_Vals.get("OTPO").get("SAIFI_CAP")
+			# Expected incentive/penalty - assumes SAIDI/SAIFI trend linearly at the target rate - Rich Text
+			context["{0}_{1}_EIP".format(indice, network[0])] = RichText(
+				(calcreward(indice, network[1])), color=colours.get(ref_string), style="Report")
 
-	# Expected incentive/penalty - assumes SAIDI/SAIFI trend linearly at the target rate - Rich Text
-	context['SAIDI_EIL_EIP'] = RichText((calcreward("SAIDI", "ELIN")), color=colourEILSAIDI, style="Report")
-	context['SAIDI_TPC_EIP'] = RichText((calcreward("SAIDI", "TPCO")), color=colourTPCSAIDI, style="Report")
-	context['SAIDI_OJV_EIP'] = RichText((calcreward("SAIDI", "OTPO")), color=colourOJVSAIDI, style="Report")
-	context['SAIFI_EIL_EIP'] = RichText((calcreward("SAIFI", "ELIN")), color=colourEILSAIFI, style="Report")
-	context['SAIFI_TPC_EIP'] = RichText((calcreward("SAIFI", "TPCO")), color=colourTPCSAIFI, style="Report")
-	context['SAIFI_OJV_EIP'] = RichText((calcreward("SAIFI", "OTPO")), color=colourOJVSAIFI, style="Report")
+			# Month to date interruptions
+			context["{0}_{1}_MTD_UBV".format(indice, network[0])] = params.get("{0}_RAW_MONTH_NUM_MAJOR_EVENTS_{1}".format(network[0], indice))
 
-	# Month to date interruptions
-	context['EIL_PLAN_MTD'] = params.get("EIL_RAW_MONTH_PLANNED")
-	context['TPC_PLAN_MTD'] = params.get("TPC_RAW_MONTH_PLANNED")
-	context['OJV_PLAN_MTD'] = params.get("OJV_RAW_MONTH_PLANNED")
-	context['EIL_UNPLAN_MTD'] = params.get("EIL_RAW_MONTH_UNPLANNED")
-	context['TPC_UNPLAN_MTD'] = params.get("TPC_RAW_MONTH_UNPLANNED")
-	context['OJV_UNPLAN_MTD'] = params.get("OJV_RAW_MONTH_UNPLANNED")
-	context['SAIDI_EIL_MTD_UBV'] = params.get("EIL_RAW_MONTH_NUM_MAJOR_EVENTS_SAIDI")
-	context['SAIDI_TPC_MTD_UBV'] = params.get("TPC_RAW_MONTH_NUM_MAJOR_EVENTS_SAIDI")
-	context['SAIDI_OJV_MTD_UBV'] = params.get("OJV_RAW_MONTH_NUM_MAJOR_EVENTS_SAIDI")
-	context['SAIFI_EIL_MTD_UBV'] = params.get("EIL_RAW_MONTH_NUM_MAJOR_EVENTS_SAIFI")
-	context['SAIFI_TPC_MTD_UBV'] = params.get("TPC_RAW_MONTH_NUM_MAJOR_EVENTS_SAIFI")
-	context['SAIFI_OJV_MTD_UBV'] = params.get("OJV_RAW_MONTH_NUM_MAJOR_EVENTS_SAIFI")
+			# Year to date interruptions
+			context["{0}_{1}_YTD_UBV".format(indice, network[0])] = params.get("{0}_RAW_NUM_MAJOR_EVENTS_{1}".format(network[0], indice))
 
-	# Year to date interruptions
-	context['EIL_PLAN_YTD'] = params.get("EIL_RAW_PLANNED")
-	context['TPC_PLAN_YTD'] = params.get("TPC_RAW_PLANNED")
-	context['OJV_PLAN_YTD'] = params.get("OJV_RAW_PLANNED")
-	context['EIL_UNPLAN_YTD'] = params.get("EIL_RAW_UNPLANNED")
-	context['TPC_UNPLAN_YTD'] = params.get("TPC_RAW_UNPLANNED")
-	context['OJV_UNPLAN_YTD'] = params.get("OJV_RAW_UNPLANNED")
-	context['SAIDI_EIL_YTD_UBV'] = params.get("EIL_RAW_NUM_MAJOR_EVENTS_SAIDI")
-	context['SAIDI_TPC_YTD_UBV'] = params.get("TPC_RAW_NUM_MAJOR_EVENTS_SAIDI")
-	context['SAIDI_OJV_YTD_UBV'] = params.get("OJV_RAW_NUM_MAJOR_EVENTS_SAIDI")
-	context['SAIFI_EIL_YTD_UBV'] = params.get("EIL_RAW_NUM_MAJOR_EVENTS_SAIFI")
-	context['SAIFI_TPC_YTD_UBV'] = params.get("TPC_RAW_NUM_MAJOR_EVENTS_SAIFI")
-	context['SAIFI_OJV_YTD_UBV'] = params.get("OJV_RAW_NUM_MAJOR_EVENTS_SAIFI")
+			# Add images of the charts to the document
+			context["{0}_{1}_CHART".format(network[0], indice)] = InlineImage(doc, 
+				os.path.join(Constants.FILE_DIRS.get("GENERAL"), "Stats/img/{0}_{1}.png".format(network[0], indice)), width=Mm(100), height=Mm(75))
+		
+		# Month to date interruptions	
+		context["{0}_PLAN_MTD".format(network[0])] = params.get("{0}_RAW_MONTH_PLANNED".format(network[0]))
+		context["{0}_UNPLAN_MTD".format(network[0])] = params.get("{0}_RAW_MONTH_UNPLANNED".format(network[0]))
 
-	# Create an object of the Word template document
-	doc = DocxTemplate(os.path.join(Constants.FILE_DIRS.get("GENERAL"), "Templates", "Weekly Report Template.docx"))
-
-	# Add images of the charts to the document
-	context['EIL_SAIDI_CHART'] = InlineImage(doc, os.path.join(Constants.FILE_DIRS.get("GENERAL"), 'Stats/img/EIL_SAIDI.png'), width=Mm(100), height=Mm(75))
-	context['EIL_SAIFI_CHART'] = InlineImage(doc, os.path.join(Constants.FILE_DIRS.get("GENERAL"), 'Stats/img/EIL_SAIFI.png'), width=Mm(100), height=Mm(75))
-	context['TPC_SAIDI_CHART'] = InlineImage(doc, os.path.join(Constants.FILE_DIRS.get("GENERAL"), 'Stats/img/TPC_SAIDI.png'), width=Mm(100), height=Mm(75))
-	context['TPC_SAIFI_CHART'] = InlineImage(doc, os.path.join(Constants.FILE_DIRS.get("GENERAL"), 'Stats/img/TPC_SAIFI.png'), width=Mm(100), height=Mm(75))
-	context['OJV_SAIDI_CHART'] = InlineImage(doc, os.path.join(Constants.FILE_DIRS.get("GENERAL"), 'Stats/img/OJV_SAIDI.png'), width=Mm(100), height=Mm(75))
-	context['OJV_SAIFI_CHART'] = InlineImage(doc, os.path.join(Constants.FILE_DIRS.get("GENERAL"), 'Stats/img/OJV_SAIFI.png'), width=Mm(100), height=Mm(75))
+		# Year to date interruptions
+		context["{0}_PLAN_YTD".format(network[0])] = params.get("{0}_RAW_PLANNED".format(network[0]))
+		context["{0}_UNPLAN_YTD".format(network[0])] = params.get("{0}_RAW_UNPLANNED".format(network[0]))
 
 	# Populate the template params
 	doc.render(context)
