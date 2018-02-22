@@ -48,7 +48,7 @@ if __name__ == "__main__":
 		  # adding packages
 		  #packages=find_packages('src'),
 		  #package_dir = {'':'src'},
-		  install_requires=['numpy', 'pypiwin32', 'pyodbc', 'six', 'wheel', 'virtualenv', 'tabulate', 'docxtpl'], #pywin32
+		  install_requires=['six', 'wheel', 'virtualenv', 'numpy', 'pypiwin32', 'pyodbc', 'lxml', 'tabulate', 'docxtpl'], # Try pywin32 if pypiwin32 fails
 		  
 		  # Add static data files
 		  include_package_data = True,

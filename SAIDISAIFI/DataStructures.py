@@ -20,7 +20,7 @@ class OutageRecord(object):
 		OutageStageIsolationPointName = dbrecord.get("Stage_Isolation_Pnt")
 
 		Network = dbrecord.get("Out_Network")
-		Class = dbrecord.get("Class_Desc")
+		ClassDescription = dbrecord.get("Class_Desc")
 		AutoReclose = dbrecord.get("Out_AutoReclose")
 		Cause = dbrecord.get("Out_Cause_Desc")
 		Note = dbrecord.get("Out_Note")
@@ -37,7 +37,12 @@ class OutageRecord(object):
 		StageCustMin = dbrecord.get("OutS_Calc_CustMin")
 
 		OutageCause = dbrecord.get("Out_Cause_Desc")
-		OuttageNote = dbrecord.get("Out_Note")
+		OutageNote = dbrecord.get("Out_Note")
+
+	def add_linked_outages(self, outageRecord1, outageRecord2):
+		pass
+
+
 
 class Calculator(object):
 	self.PlannedFaults = {} # key = linked ORS, values = [date, SAIDI, SAIFI, unique ICP count, Feeder]
@@ -46,7 +51,7 @@ class Calculator(object):
 class Day(object):
 	# All the linked outages for the day
 	# {key=LinkedORSNumber, value=class<LinkedOutage>}
-	LinkedOutages = {-258 : class<LinkedOutage>}
+	#LinkedOutages = {-258 : class<LinkedOutage>}
 	TotalSAIDI = 0
 	TotalSAIFI = 0
 	NumberOutages = 0
@@ -59,7 +64,7 @@ class Day(object):
 class LinkedOutage(object):
 	# All the link outages for the day
 	# {key=ORSNumber, value=class<Outage>}
-	Outages = {-259 : class<Outage>}
+	#Outages = {-259 : class<Outage>}
 	AutoReclose = False
 	CauseDescription = ""
 	OutageClass = "" # Make this a model class?

@@ -187,6 +187,11 @@ class ODBC_ORS(object):
 			# The row is already a tuple (itterable object), so there is no need to enclose it in a list 
 			QueryData.append(row)
 		return QueryData
+
+	def get_column_names(self):
+		"""Returns a list of the column names returned in the query.
+		"""
+		return [column[0] for column in self.cursor.description]
 		
 	def close(self):
 		"""Close the file pointer and DB connection"""

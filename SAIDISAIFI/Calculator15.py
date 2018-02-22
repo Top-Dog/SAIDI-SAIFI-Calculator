@@ -925,6 +925,82 @@ class ORSCalculator(object):
 						   "|", pSAIDI, upSAIDI, pSAIDI+upSAIDI, 
 						   "|", pSAIFI, upSAIFI, pSAIFI+upSAIFI])
 
+
+from DataStructures import OutageRecord
+
 class ORSCalculatorEnhanced(ORSCalculator):
 	def __init__(self):
 		super(ORSCalculatorEnhanced, self)
+		self.outageRecords = {}
+		self.networknames = []
+		self.OutageClasses = ["Unplanned - PowerNet", "Planned - PowerNet"]
+		
+		# Run the SQL Query and collect the outage records
+		ORS = ODBC_ORS()
+		query = ORS.load_sql("OutageDetail.sql")
+		records = ORS.run_query(query)
+		columnNames = ORS.get_column_names()
+		for record in records:
+			outageRecord = {}
+			for columnName, value in zip(columnNames, record):
+				outageRecord[columnName] = value
+			
+			# Only select the fault records we are interested in
+			if outageRecord["Network"] in self.networknames and outageRecord["ClassDescription"] in self.OutageClasses:
+				self.outageRecords[outageRecord.get("Out_Linked_Num")] = OutageRecord(outageRecord)
+
+	def group_linked_outages(self, outages):
+		"""Group all the outages by their linked ORS number."""
+		# {linkedorsnumber : class<linkedoutages>}
+		linkedOutages = {}
+		for outage in outages:
+			record = linkedOutages.get(outage.LinkedID)
+			if record:
+				linkedOutages[outage.LinkedID].append(outage)
+			else:
+				linkedOutages[outage.LinkedID] = [outage]
+
+		return linkedOutages
+
+
+	def group_outages_by_ors_num(self, outages):
+		Outages = {}
+		for outage.ID in outages:
+			pass
+
+
+	def group_outages_by_date(self, ghtei):
+		pass
+
+
+	def _process_fault_record(self, record, FaultType, IndividualFaults):
+		"""Process an individual record read from the database. Decide if it
+		is a new fault, linked to another fault and what date a group collection
+		of faults should fall on. Handles the linking of outages and creating
+		new records."""
+		# Only count faults for the network (specfied by name) we are testing
+		if record[self.NetworkCol] in self.networknames:
+			# Get the stats for a new record in the ORS
+			Date, SAIDI, SAIFI = self.get_fault(record, FaultType)
+			ICPcount = record[self.UniqueICPCol]
+			Feeder = record[self.FeederCol]
+			if type(ICPcount) is not int:
+				try:
+					ICPcount = float(record[self.UniqueICPCol].replace(',', ''))
+				except:
+					ICPcount = 0
+					#print "Bad data. No Unique ICPs found in", record
+			
+			# Handle the linking of faults
+			if self.LinkOutages:
+				# Get the stats for an old record in the ORS, or 0 if nothing exists
+				Date0, SAIDI0, SAIFI0, ICPcount0, Feeder0 = IndividualFaults.get(record[self.LinkedORSCol], [Date, 0, 0, 0, Feeder])
+				if record[self.ORSNumCol] == record[self.LinkedORSCol]:
+					# The outage is always brought back to the date where the linked ORS# and ORS# are the same (not the max. or min. date) - should it be the min. date?
+					Date0 = Date
+				if SAIDI0 + SAIDI != 0 and SAIFI0 + SAIFI != 0:
+					# Only add non-zero records to the dictionaries, i.e. only faults are added (no clear days with 0 SAIDI/SAIFI)
+					IndividualFaults[record[self.LinkedORSCol]] = [Date0, SAIDI0 + SAIDI, SAIFI0 + SAIFI, ICPcount0 + ICPcount, Feeder0]
+			else:
+				if SAIDI != 0 and SAIFI != 0:
+					IndividualFaults[record[self.ORSNumCol]] = [Date, SAIDI, SAIFI, ICPcount, Feeder]

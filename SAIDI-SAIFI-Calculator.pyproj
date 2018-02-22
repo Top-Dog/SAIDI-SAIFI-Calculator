@@ -35,7 +35,7 @@
     <Compile Include="SAIDISAIFI\Calculator15.py" />
     <Compile Include="SAIDISAIFI\CalculatorAux.py" />
     <Compile Include="SAIDISAIFI\Constants.py" />
-    <Compile Include="SAIDISAIFI\Data Structures.py">
+    <Compile Include="SAIDISAIFI\DataStructures.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="SAIDISAIFI\Output\Output.py" />

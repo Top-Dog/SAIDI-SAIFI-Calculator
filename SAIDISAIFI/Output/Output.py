@@ -70,8 +70,8 @@ class ORSPlots(object): # ORSCalculator
 		self.Sheet.rmvSheet(keepList=[self.InputSheet, self.StatsSheet])
 	
 	def Create_Sheets(self, dates):
-		"""creates all the sheets needed in the workbook.
-		Autofills the dates. All other data is network spesfic"""
+		"""Creates all the sheets needed in the workbook.
+		Autofills the dates. All other data is network specific"""
 		for date in dates:
 			year = str(date.year)
 			self.Create_Sheet(year)
@@ -133,6 +133,7 @@ class ORSPlots(object): # ORSCalculator
 		suffix = " " + suffix
 		row, col = \
 			self.Sheet.setRange(self.CalculationSheet+suffix, self.DateOrigin.row, self.DateOrigin.col, self.Generate_Dates(date))
+		self.Sheet.autofit(self.CalculationSheet+suffix, self.DateOrigin.col)
 
 	def _Correct_Graph_Slope(self, suffix, enddate=datetime.datetime.now()):
 		"""When the data is truncated for stacked area charts we need two of the same end dates

@@ -42,7 +42,7 @@ def get_rtext(kwarg):
 	return xml[l+len(openingtag):h]
 
 def calcreward(saidi_saifi, network):
-	"""Returns the dollar penalty/incentive for a given 
+	"""Returns a string for the dollar penalty/incentive for a given 
 	network's SAIDI or SAIFI"""
 	if network == "TPCO":
 		net = "TPC"
@@ -65,7 +65,7 @@ def calcreward(saidi_saifi, network):
 		# Force the -ve sign to the left of the dollar sign
 		rewardstr = "-$%.2f" % abs(adjustedreward)
 	
-		# New formatting style (no $ sign)
+	# (optional) New formatting style (no $ sign)
 	rewardstr = "%.2f" % (adjustedreward)
 	return rewardstr
 
@@ -137,7 +137,7 @@ if __name__ == "__main__":
 	except IOError, e:
 		# The document is probably open already
 		print e
-		print "The docuemnt is probably open, and can not be saved."
+		print "The document is probably open, and can not be saved."
 
 	print "Success!"
 	time.sleep(5)
