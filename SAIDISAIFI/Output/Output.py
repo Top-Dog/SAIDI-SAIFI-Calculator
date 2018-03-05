@@ -129,11 +129,16 @@ class ORSPlots(object): # ORSCalculator
 		return TimeStamps
 
 	def Fill_Dates(self, date, suffix):
-		"""Fill the date column in the Excel sheet with the date values read from the parser"""
+		"""Fill the date column in the Excel sheet with the date values read from the parser.
+		Also performs and autofit (width) and freezes panes."""
 		suffix = " " + suffix
 		row, col = \
 			self.Sheet.setRange(self.CalculationSheet+suffix, self.DateOrigin.row, self.DateOrigin.col, self.Generate_Dates(date))
 		self.Sheet.autofit(self.CalculationSheet+suffix, self.DateOrigin.col)
+		ActiveWindow = self.xlInst.xlApp.Windows(self.xlInst.xlBook.Name)
+		ActiveWindow.SplitColumn = 1
+		ActiveWindow.SplitRow = 3
+		ActiveWindow.FreezePanes = True
 
 	def _Correct_Graph_Slope(self, suffix, enddate=datetime.datetime.now()):
 		"""When the data is truncated for stacked area charts we need two of the same end dates
@@ -146,7 +151,7 @@ class ORSPlots(object): # ORSCalculator
 		results = self.Sheet.search(shtRange(self.CalculationSheet+suffix, None, 4, 1, maxrow, 1), 
 						searchterm)
 		if len(results) == 1:
-			# If there is only one date, we hav't corrected slope yet so do it now
+			# If there is only one date, we haven't corrected slope yet so do it now
 			self.Sheet.setCell(self.CalculationSheet+suffix, results[0].Row+1, 1, results[0].Value)
 
 	def _Correct_Graph_Axis(self, ChartName, enddate=datetime.datetime.now()):
